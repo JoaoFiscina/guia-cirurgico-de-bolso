@@ -30,50 +30,6 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <section id="accessGate" class="access-gate" aria-labelledby="accessGateTitle">
-      <div class="access-gate-card">
-        <div class="access-logo-mark" data-logo-src="assets/lacir-logo-oficial.png">
-          <img
-            alt="Logo da LACIR"
-            class="lacir-logo"
-            width="96"
-            height="96"
-            loading="eager"
-            decoding="async"
-            hidden
-          />
-          <span class="lacir-logo-fallback" role="img" aria-label="Logo da LACIR">
-            LACIR
-          </span>
-        </div>
-
-        <div class="access-gate-copy">
-          <p class="eyebrow">Liga Acadêmica de Cirurgia - LACIR</p>
-          <h2 id="accessGateTitle">Guia Cirúrgico de Bolso da LACIR</h2>
-          <p>Digite a senha de acesso para abrir os roteiros e checklists do guia.</p>
-        </div>
-
-        <form id="accessGateForm" class="access-gate-form" autocomplete="off">
-          <label class="field access-password-field" for="accessPasswordInput">
-            <span>Senha de acesso</span>
-            <input
-              type="password"
-              id="accessPasswordInput"
-              inputmode="text"
-              autocomplete="current-password"
-              placeholder="Digite a senha"
-            />
-          </label>
-
-          <button type="submit" class="button button-primary access-gate-button">
-            Acessar guia
-          </button>
-
-          <p id="accessGateMessage" class="access-gate-message" aria-live="polite"></p>
-        </form>
-      </div>
-    </section>
-
     <div class="page-shell">
       <header class="topbar">
         <div class="topbar-main">
@@ -102,25 +58,28 @@
         </div>
 
         <div class="topbar-actions">
-          <button type="button" id="clearSavedProgressButton" class="button button-ghost">
+          <button type="button" id="clearSavedProgressButton" class="button button-ghost button-compact">
             Limpar progresso
           </button>
         </div>
       </header>
 
+      <div class="app-toolbar">
       <nav class="main-nav">
         <button type="button" id="practiceSectionTab" class="nav-tab is-active">
-          <span class="nav-tab-icon">📖</span> Roteiros Práticos
+          <svg class="icon nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>
+          Roteiros Práticos
         </button>
         <button type="button" id="theorySectionTab" class="nav-tab">
-          <span class="nav-tab-icon">🔧</span> Teoria Cirúrgica
+          <svg class="icon nav-tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88"/><path d="M14.47 14.48 20 20"/><path d="M8.12 8.12 12 12"/></svg>
+          Teoria Cirúrgica
         </button>
       </nav>
 
-      <section class="panel status-panel">
+      <section class="status-panel">
         <div class="status-container-compact">
           <div class="status-left">
-            <span class="status-icon">📚</span>
+            <svg class="icon status-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
             <p id="statusMessage" class="status-message" aria-live="polite">
               Preparando leitura dos roteiros...
             </p>
@@ -133,8 +92,9 @@
             </div>
           </div>
           <div class="status-right">
-            <button type="button" id="reloadProceduresButton" class="button button-secondary button-compact">
-              Recarregar
+            <button type="button" id="reloadProceduresButton" class="button button-ghost button-compact" title="Recarregar roteiros">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+              <span>Recarregar</span>
             </button>
           </div>
         </div>
@@ -189,12 +149,14 @@
           />
         </div>
       </section>
+      </div>
 
       <div id="practiceSection" class="main-section">
         <div class="layout">
         <aside class="sidebar">
           <button type="button" id="mobileSidebarToggle" class="button button-secondary mobile-sidebar-toggle">
-            🔍 Buscar e Selecionar Roteiro
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            Buscar e selecionar roteiro
           </button>
           <div class="sidebar-content-wrapper">
             <section class="panel sidebar-intro">
@@ -246,8 +208,8 @@
             </section>
 
             <section class="panel procedure-panel">
-              <div id="quickProcedurePicker" class="quick-picker" style="border: none; padding: 0; background: transparent; margin: 0; display: grid; gap: 12px;">
-                <label class="field" style="margin-top: 0;">
+              <div id="quickProcedurePicker" class="quick-picker">
+                <label class="field quick-picker-field">
                   <span>Selecione um procedimento</span>
                   <select id="quickProcedureSelect" class="procedure-select-dropdown">
                     <option value="">Escolha um roteiro...</option>
@@ -258,12 +220,12 @@
                   type="button"
                   id="randomProcedureButton"
                   class="button button-primary quick-random-button"
-                  style="width: 100%;"
                 >
-                  🎲 Aleatorizar escolha
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="m4 4 5 5"/></svg>
+                  Aleatorizar escolha
                 </button>
 
-                <p id="quickProcedureHint" class="quick-picker-hint" style="margin-top: 4px;">
+                <p id="quickProcedureHint" class="quick-picker-hint">
                   O sorteio usa os roteiros visíveis com os filtros atuais.
                 </p>
               </div>
@@ -310,10 +272,12 @@
               </p>
               <div class="empty-state-actions">
                 <button type="button" id="hubViewListButton" class="button button-primary">
-                  <span class="action-icon">📖</span> Ver roteiros
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg>
+                  Ver roteiros
                 </button>
                 <button type="button" id="hubRandomButton" class="button button-secondary">
-                  <span class="action-icon">🎲</span> Aleatorizar escolha
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="m4 4 5 5"/></svg>
+                  Aleatorizar escolha
                 </button>
               </div>
             </div>
@@ -342,12 +306,14 @@
                 </div>
 
                 <div class="hero-actions">
-                  <button type="button" id="studyModeButton" class="button button-primary">
-                    Modo Estudo
-                  </button>
-                  <button type="button" id="sequenceModeButton" class="button button-secondary">
-                    Modo Sequência
-                  </button>
+                  <div class="mode-switch" role="group" aria-label="Modo de estudo">
+                    <button type="button" id="studyModeButton" class="button button-primary">
+                      Modo Estudo
+                    </button>
+                    <button type="button" id="sequenceModeButton" class="button button-secondary">
+                      Modo Sequência
+                    </button>
+                  </div>
                   <button type="button" id="focusModeButton" class="button button-secondary">
                     Modo Foco
                   </button>
@@ -371,13 +337,13 @@
                   </div>
                   <div class="info-global-actions">
                     <button type="button" id="openAllInfoButton" class="button button-ghost button-compact">
-                      <span class="action-icon">📂</span> Abrir tudo
+                      Abrir tudo
                     </button>
                     <button type="button" id="closeAllInfoButton" class="button button-ghost button-compact">
-                      <span class="action-icon">📁</span> Fechar tudo
+                      Fechar tudo
                     </button>
                     <button type="button" id="stepsOnlyButton" class="button button-ghost button-compact">
-                      <span class="action-icon">🎯</span> Mostrar só passos
+                      Ir para os passos
                     </button>
                   </div>
                 </div>
@@ -460,6 +426,12 @@
               </div>
 
               <div class="sequence-mobile-bar" aria-label="Controles rápidos da sequência">
+                <div class="sequence-mobile-progress" aria-hidden="true">
+                  <div class="progress-track">
+                    <div id="mobileSequenceProgressBar" class="progress-fill"></div>
+                  </div>
+                  <span id="mobileSequenceCounter" class="sequence-mobile-counter">0 / 0</span>
+                </div>
                 <button type="button" id="mobilePreviousStepButton" class="button button-ghost">
                   Voltar
                 </button>
@@ -480,7 +452,8 @@
         <div class="teoria-layout">
           <aside class="teoria-sidebar">
             <button type="button" id="mobileTeoriaSidebarToggle" class="button button-secondary mobile-sidebar-toggle">
-              🏥 Selecionar Módulo Teórico
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+              Selecionar módulo teórico
             </button>
             <div class="teoria-sidebar-content-wrapper">
               <section class="panel teoria-sidebar-panel">
@@ -503,7 +476,9 @@
           <main class="teoria-content">
             <div id="teoriaEmptyState" class="teoria-empty-state">
               <div class="empty-state-card">
-                <div class="empty-logo-mark">🔧</div>
+                <div class="empty-logo-mark empty-icon-mark">
+                  <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88"/><path d="M14.47 14.48 20 20"/><path d="M8.12 8.12 12 12"/></svg>
+                </div>
                 <p class="eyebrow">Teoria Cirúrgica</p>
                 <h2>Selecione um módulo teórico</h2>
                 <p>Escolha um dos temas na barra lateral para começar seu estudo teórico, visualizar os instrumentais e realizar revisões.</p>

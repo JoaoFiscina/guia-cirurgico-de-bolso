@@ -3,13 +3,9 @@ const CONFIG_PATH = "config/app-config.json";
 const MANIFEST_FILENAME = "procedimentos-manifest.json";
 const SUPPORTED_EXTENSIONS = [".json", ".txt"];
 const DEBUG_PREFIX = "[Guia LACIR]";
-const ACCESS_PASSWORD = "Lacir2026";
-const ACCESS_SESSION_KEY = "lacir-access-unlocked";
-const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos em milissegundos
-const MAX_SESSION_DURATION = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
-let inactivityTimer = null;
-let absoluteSessionTimer = null;
 let catalogLoadToken = 0;
+// Roteiro cujos passos estão desenhados no modo sequência (permite atualizar só o último cartão).
+let renderedSequenceProcedure = null;
 const DISPLAY_CATEGORIES = [
   "Lesões de pele e subcutâneo",
   "Suturas, feridas e curativos",
@@ -99,10 +95,6 @@ const appState = {
 };
 
 const elements = {
-  accessGate: document.querySelector("#accessGate"),
-  accessGateForm: document.querySelector("#accessGateForm"),
-  accessPasswordInput: document.querySelector("#accessPasswordInput"),
-  accessGateMessage: document.querySelector("#accessGateMessage"),
   searchInput: document.querySelector("#searchInput"),
   categoryFilter: document.querySelector("#categoryFilter"),
   disciplineFilter: document.querySelector("#disciplineFilter"),
@@ -156,6 +148,8 @@ const elements = {
   mobilePreviousStepButton: document.querySelector("#mobilePreviousStepButton"),
   mobileNextStepButton: document.querySelector("#mobileNextStepButton"),
   mobileRestartSequenceButton: document.querySelector("#mobileRestartSequenceButton"),
+  mobileSequenceCounter: document.querySelector("#mobileSequenceCounter"),
+  mobileSequenceProgressBar: document.querySelector("#mobileSequenceProgressBar"),
   sequenceCounter: document.querySelector("#sequenceCounter"),
   sequenceProgressBar: document.querySelector("#sequenceProgressBar"),
   sequenceIntro: document.querySelector("#sequenceIntro"),
@@ -192,7 +186,6 @@ async function initializeApp() {
 
   try {
     restoreState();
-    initializeAccessGate();
     bindEvents();
     initializeLogoMarks();
     render();
@@ -276,57 +269,6 @@ function initializeLogoMarks() {
   });
 }
 
-function initializeAccessGate() {
-  if (!elements.accessGate || !elements.accessGateForm || !elements.accessPasswordInput) {
-    return;
-  }
-
-  if (isSessionValid()) {
-    unlockAccessGate();
-    return;
-  }
-
-  lockAccessGate();
-}
-
-function isSessionValid() {
-  const saved = sessionStorage.getItem(ACCESS_SESSION_KEY);
-  if (!saved) {
-    return false;
-  }
-
-  try {
-    const data = JSON.parse(saved);
-    const now = Date.now();
-    const isWithinAbsoluteLimit = now - data.unlockedAt < MAX_SESSION_DURATION;
-    const isWithinInactivityLimit = now - data.lastActivity < INACTIVITY_TIMEOUT;
-
-    return isWithinAbsoluteLimit && isWithinInactivityLimit;
-  } catch (error) {
-    return false;
-  }
-}
-
-function lockAccessGate() {
-  sessionStorage.removeItem(ACCESS_SESSION_KEY);
-  
-  if (inactivityTimer) {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = null;
-  }
-  if (absoluteSessionTimer) {
-    clearInterval(absoluteSessionTimer);
-    absoluteSessionTimer = null;
-  }
-
-  if (elements.accessGate) {
-    elements.accessGate.classList.remove("is-unlocked");
-    elements.accessGate.removeAttribute("aria-hidden");
-    elements.accessPasswordInput.value = "";
-    elements.accessPasswordInput.focus({ preventScroll: true });
-  }
-}
-
 function bindEvents() {
   if (elements.practiceSectionTab && elements.theorySectionTab) {
     elements.practiceSectionTab.addEventListener("click", () => {
@@ -347,10 +289,6 @@ function bindEvents() {
         window.TeoriaManager.init();
       }
     });
-  }
-
-  if (elements.accessGateForm) {
-    elements.accessGateForm.addEventListener("submit", handleAccessGateSubmit);
   }
 
   elements.searchInput.addEventListener("input", (event) => {
@@ -581,19 +519,6 @@ function bindEvents() {
     });
   }
 
-  if (elements.detailsContainer) {
-    elements.detailsContainer.addEventListener("toggle", (event) => {
-      if (event.target && event.target.tagName === "DETAILS") {
-        // Forçar reflow para evitar bugs de recálculo de altura em CSS Grid
-        const container = elements.detailsContainer;
-        const display = container.style.display;
-        container.style.display = "none";
-        container.offsetHeight;
-        container.style.display = display;
-      }
-    }, { capture: true, passive: true });
-  }
-
   if (elements.hubViewListButton) {
     elements.hubViewListButton.addEventListener("click", () => {
       // No celular a lista fica recolhida; precisa abrir antes de focar a busca.
@@ -659,119 +584,6 @@ function bindEvents() {
   document.addEventListener("keydown", handleSequenceShortcuts);
   window.addEventListener("scroll", updateSequenceSummaryState, { passive: true });
   window.addEventListener("resize", updateSequenceSummaryState);
-}
-
-function handleAccessGateSubmit(event) {
-  event.preventDefault();
-
-  const typedPassword = elements.accessPasswordInput.value.trim();
-
-  if (typedPassword === ACCESS_PASSWORD) {
-    const now = Date.now();
-    const sessionData = {
-      unlockedAt: now,
-      lastActivity: now
-    };
-    sessionStorage.setItem(ACCESS_SESSION_KEY, JSON.stringify(sessionData));
-    unlockAccessGate();
-    return;
-  }
-
-  elements.accessGateMessage.textContent = "Senha incorreta. Tente novamente.";
-  elements.accessPasswordInput.value = "";
-  elements.accessPasswordInput.focus();
-}
-
-function unlockAccessGate() {
-  if (!elements.accessGate) {
-    return;
-  }
-
-  elements.accessGate.classList.add("is-unlocked");
-  elements.accessGate.setAttribute("aria-hidden", "true");
-  
-  setupInactivityListeners();
-  startSessionTimers();
-}
-
-function setupInactivityListeners() {
-  const events = ["mousemove", "mousedown", "keypress", "touchstart", "scroll"];
-  events.forEach((event) => {
-    document.addEventListener(event, handleUserActivity, { passive: true });
-  });
-  
-  resetInactivityTimer();
-}
-
-function removeInactivityListeners() {
-  const events = ["mousemove", "mousedown", "keypress", "touchstart", "scroll"];
-  events.forEach((event) => {
-    document.removeEventListener(event, handleUserActivity);
-  });
-}
-
-let lastActivitySaved = Date.now();
-
-function handleUserActivity() {
-  resetInactivityTimer();
-  
-  const now = Date.now();
-  if (now - lastActivitySaved > 10000) {
-    updateSessionActivity(now);
-    lastActivitySaved = now;
-  }
-}
-
-function resetInactivityTimer() {
-  if (inactivityTimer) {
-    clearTimeout(inactivityTimer);
-  }
-  inactivityTimer = setTimeout(() => {
-    logInfo("Sessão expirada por inatividade.");
-    lockAccessGate();
-    removeInactivityListeners();
-  }, INACTIVITY_TIMEOUT);
-}
-
-function updateSessionActivity(timestamp) {
-  const saved = sessionStorage.getItem(ACCESS_SESSION_KEY);
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      data.lastActivity = timestamp;
-      sessionStorage.setItem(ACCESS_SESSION_KEY, JSON.stringify(data));
-    } catch (e) {
-      // Ignorar erros
-    }
-  }
-}
-
-function startSessionTimers() {
-  if (absoluteSessionTimer) {
-    clearInterval(absoluteSessionTimer);
-  }
-  
-  absoluteSessionTimer = setInterval(() => {
-    const saved = sessionStorage.getItem(ACCESS_SESSION_KEY);
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        const now = Date.now();
-        
-        if (now - data.unlockedAt >= MAX_SESSION_DURATION) {
-          logInfo("Sessão expirada pelo tempo limite absoluto.");
-          lockAccessGate();
-          removeInactivityListeners();
-        }
-      } catch (e) {
-        lockAccessGate();
-        removeInactivityListeners();
-      }
-    } else {
-      lockAccessGate();
-      removeInactivityListeners();
-    }
-  }, 30000); // Executa a cada 30 segundos
 }
 
 async function bootstrapCatalog() {
@@ -2277,16 +2089,44 @@ function renderSequenceView(procedure) {
 
   elements.sequenceCounter.textContent = `${progress.sequenceIndex} / ${totalSteps}`;
   elements.sequenceProgressBar.style.width = `${percentage}%`;
+
+  if (elements.mobileSequenceCounter && elements.mobileSequenceProgressBar) {
+    elements.mobileSequenceCounter.textContent = `${progress.sequenceIndex} / ${totalSteps}`;
+    elements.mobileSequenceProgressBar.style.width = `${percentage}%`;
+  }
+
   syncSequenceControls(progress.sequenceIndex, totalSteps);
   renderSequenceSummaryState();
   elements.sequenceIntro.classList.toggle("hidden", revealedSteps.length > 0);
 
-  if (!revealedSteps.length) {
-    elements.sequenceStepsList.innerHTML = "";
+  const list = elements.sequenceStepsList;
+  const isSameProcedure = renderedSequenceProcedure === procedure;
+  const renderedCount = list.children.length;
+
+  if (isSameProcedure && renderedCount === revealedSteps.length) {
     return;
   }
 
-  elements.sequenceStepsList.innerHTML = revealedSteps
+  // Avançar ou voltar um passo mexe só no último cartão; os anteriores ficam
+  // como estão (sem piscar imagens nem reiniciar animações).
+  if (isSameProcedure && renderedCount === revealedSteps.length - 1) {
+    setSequenceCardCurrent(list.lastElementChild, false);
+    const newIndex = revealedSteps.length;
+    list.insertAdjacentHTML(
+      "beforeend",
+      createStepCard(revealedSteps[newIndex - 1], { current: true, sequenceIndex: newIndex })
+    );
+    return;
+  }
+
+  if (isSameProcedure && renderedCount === revealedSteps.length + 1 && renderedCount > 0) {
+    list.lastElementChild.remove();
+    setSequenceCardCurrent(list.lastElementChild, true);
+    return;
+  }
+
+  renderedSequenceProcedure = procedure;
+  list.innerHTML = revealedSteps
     .map((step, index) =>
       createStepCard(step, {
         current: index === revealedSteps.length - 1,
@@ -2294,6 +2134,22 @@ function renderSequenceView(procedure) {
       })
     )
     .join("");
+}
+
+function setSequenceCardCurrent(card, isCurrent) {
+  if (!card) {
+    return;
+  }
+
+  card.classList.toggle("is-current", isCurrent);
+  const badges = card.querySelector(".step-badges");
+  const currentBadge = badges ? badges.querySelector(".checked-badge") : null;
+
+  if (isCurrent && badges && !currentBadge) {
+    badges.insertAdjacentHTML("beforeend", '<span class="badge checked-badge">Passo atual</span>');
+  } else if (!isCurrent && currentBadge) {
+    currentBadge.remove();
+  }
 }
 
 function createStepCard(step, options = {}) {
@@ -2446,7 +2302,10 @@ function createDetailPanel(title, items, openByDefault) {
   return `
     <div class="detail-panel-wrapper">
       <details class="detail-panel" ${openByDefault ? "open" : ""}>
-        <summary>${escapeHtml(title)}</summary>
+        <summary>
+          <span>${escapeHtml(title)}</span>
+          <span class="detail-count" aria-label="${items.length} itens">${items.length}</span>
+        </summary>
         <div class="detail-content">
           <ul class="detail-list">
             ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
@@ -2602,9 +2461,38 @@ function selectProcedure(procedureId) {
     return;
   }
 
+  const isDifferentProcedure = appState.selectedProcedureId !== procedureId;
+
   appState.selectedProcedureId = procedureId;
   persistState();
   render();
+
+  if (isDifferentProcedure) {
+    playEnterAnimation(elements.procedureView);
+  }
+}
+
+function playEnterAnimation(element) {
+  if (!element) {
+    return;
+  }
+
+  element.classList.remove("is-entering");
+  // Força o navegador a registrar a remoção para a animação recomeçar.
+  void element.offsetWidth;
+  element.classList.add("is-entering");
+
+  const handleEnd = (event) => {
+    // Ignora o fim das animações dos filhos (cartões, painéis), que também borbulham.
+    if (event.target !== element) {
+      return;
+    }
+
+    element.classList.remove("is-entering");
+    element.removeEventListener("animationend", handleEnd);
+  };
+
+  element.addEventListener("animationend", handleEnd);
 }
 
 function selectRandomProcedure() {

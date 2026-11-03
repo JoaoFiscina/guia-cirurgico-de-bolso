@@ -22,6 +22,9 @@
   --radius-lg: 14px;
   --radius-md: 10px;
   --radius-sm: 8px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+  --duration: 240ms;
   --sans: "Outfit", "Inter", "Segoe UI Variable", "Segoe UI", sans-serif;
   --serif: "Outfit", "Iowan Old Style", "Georgia", serif;
 }
@@ -39,10 +42,12 @@ body {
   min-height: 100vh;
   font-family: var(--sans);
   font-size: 1rem;
-  line-height: 1.7;
+  line-height: 1.6;
   color: var(--text);
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
   background: linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 56%, #ffffff 100%);
 }
 
@@ -73,6 +78,29 @@ select {
 button {
   cursor: pointer;
   border: 0;
+  /* Remove o atraso de toque duplo no celular. */
+  touch-action: manipulation;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+/* Ícones de linha desenhados no HTML; herdam a cor do texto. */
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 button:focus-visible,
@@ -96,92 +124,6 @@ summary:focus-visible,
   max-width: 1740px;
   margin: 0 auto;
   padding: clamp(16px, 2vw, 28px);
-}
-
-.access-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background:
-    linear-gradient(rgba(31, 42, 40, 0.74), rgba(31, 42, 40, 0.74)),
-    linear-gradient(135deg, #1f2a28 0%, #244c3a 58%, #3f6f58 100%);
-}
-
-.access-gate.is-unlocked {
-  display: none;
-}
-
-.access-gate-card {
-  width: min(100%, 520px);
-  display: grid;
-  justify-items: center;
-  gap: 24px;
-  padding: clamp(26px, 5vw, 44px);
-  border: 1px solid rgba(216, 225, 218, 0.72);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.24);
-  text-align: center;
-}
-
-.access-logo-mark {
-  display: inline-grid;
-  place-items: center;
-  width: clamp(92px, 18vw, 132px);
-  height: clamp(92px, 18vw, 132px);
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: #1f2a28;
-  box-shadow: 0 18px 36px rgba(31, 42, 40, 0.18);
-  overflow: hidden;
-}
-
-.access-gate-copy {
-  display: grid;
-  gap: 10px;
-}
-
-.access-gate-copy h2 {
-  margin: 0;
-  color: var(--accent);
-  font-family: var(--serif);
-  font-size: 2.15rem;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.access-gate-copy p {
-  max-width: 34rem;
-  margin: 0 auto;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
-.access-gate-form {
-  width: min(100%, 360px);
-  display: grid;
-  gap: 14px;
-}
-
-.access-password-field {
-  margin-top: 0;
-  text-align: left;
-}
-
-.access-gate-button {
-  width: 100%;
-}
-
-.access-gate-message {
-  min-height: 1.4em;
-  margin: 0;
-  color: #74621c;
-  font-size: 0.92rem;
-  font-weight: 700;
 }
 
 .topbar {
@@ -350,7 +292,6 @@ summary:focus-visible,
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  backdrop-filter: blur(18px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -588,13 +529,8 @@ summary:focus-visible,
 }
 
 .quick-picker {
-  margin-top: 14px;
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-muted);
+  gap: 12px;
 }
 
 .quick-picker-field {
@@ -603,16 +539,12 @@ summary:focus-visible,
 
 .quick-random-button {
   width: 100%;
-  border-color: transparent;
-  background: var(--green);
-  color: #ffffff;
-  box-shadow: 0 10px 18px rgba(66, 93, 74, 0.16);
 }
 
 .quick-picker-hint {
   margin: 0;
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   line-height: 1.45;
 }
 
@@ -620,21 +552,29 @@ summary:focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-height: 44px;
   padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid transparent;
   font-weight: 700;
+  line-height: 1.2;
   transition:
-    transform 180ms ease,
-    box-shadow 180ms ease,
-    background-color 180ms ease,
-    color 180ms ease,
-    border-color 180ms ease;
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
 }
 
 .button:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+/* Resposta imediata ao toque/clique. */
+.button:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 60ms;
 }
 
 .button:disabled {
@@ -736,9 +676,6 @@ summary:focus-visible,
   padding-right: 0;
 }
 
-.procedure-panel {
-  padding: 12px;
-}
 
 .procedure-card {
   padding: 12px;
@@ -856,9 +793,20 @@ summary:focus-visible,
   opacity: 0.94;
 }
 
+.empty-icon-mark {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.empty-icon-mark .icon {
+  width: 26px;
+  height: 26px;
+}
+
 .empty-state h2 {
-  font-size: 2.25rem;
-  margin: 14px 0;
+  font-size: 2.1rem;
+  line-height: 1.15;
+  margin: 12px 0;
 }
 
 .hero {
@@ -868,14 +816,29 @@ summary:focus-visible,
   align-items: center;
 }
 
+/* Sem imagem de capa (a maioria dos roteiros), o texto ocupa a largura toda. */
+.hero:has(.hero-image-wrapper.hidden) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .hero-copy {
   display: grid;
   gap: 14px;
 }
 
+.hero .hero-meta-row {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
 .hero h2 {
   font-size: 2.35rem;
   line-height: 1.08;
+}
+
+.hero-description {
+  max-width: 78ch;
+  margin: 0;
 }
 
 .hero-file-row {
@@ -885,17 +848,50 @@ summary:focus-visible,
   min-width: 0;
 }
 
+/* Caminho do arquivo: informação de manutenção, discreta. */
 .hero-file-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
   max-width: 100%;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #ffffff;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  opacity: 0.75;
   overflow-wrap: anywhere;
-  white-space: normal;
+}
+
+.hero-actions {
+  align-items: center;
+}
+
+/* Estudo / Sequência como um seletor de duas posições. */
+.mode-switch {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.mode-switch .button,
+.mode-switch .button.button-secondary {
+  min-height: 40px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.mode-switch .button:hover:not(:disabled) {
+  transform: none;
+  color: var(--accent);
+}
+
+.mode-switch .button[aria-pressed="true"] {
+  background: linear-gradient(135deg, var(--accent), #3f6f58);
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(36, 76, 58, 0.18);
 }
 
 .hero-image-wrapper {
@@ -941,8 +937,10 @@ summary:focus-visible,
   line-height: 1.62;
 }
 
+/* Lista única: abrir um painel não deixa buracos ao lado nem empurra colunas. */
 .details-grid {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 
 /* Estilos para Acordeões (detail-panel) */
@@ -970,13 +968,13 @@ summary:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 13px 18px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 1.04rem;
+  font-size: 1.02rem;
   color: var(--text);
   background: var(--surface-strong);
-  transition: background-color 0.2s ease;
+  transition: background-color var(--duration-fast) ease;
   user-select: none;
 }
 
@@ -997,20 +995,42 @@ summary:focus-visible,
   background-color: var(--bg-soft);
 }
 
-.detail-panel summary::after {
-  content: "▼";
-  font-size: 0.8rem;
+.detail-count {
+  margin-left: auto;
+  min-width: 28px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--green-soft);
   color: var(--green);
-  transition: transform 0.25s ease;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Seta desenhada em CSS, gira ao abrir. */
+.detail-panel summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin: 0 2px 4px 4px;
+  border-right: 2px solid var(--green);
+  border-bottom: 2px solid var(--green);
+  transform: rotate(45deg);
+  transition: transform var(--duration) var(--ease-out), margin var(--duration) var(--ease-out);
 }
 
 .detail-panel[open] summary::after {
-  transform: rotate(-180deg);
+  margin-bottom: -2px;
+  transform: rotate(-135deg);
 }
 
 .detail-content {
-  padding: 20px;
+  padding: 16px 20px 18px;
   background: var(--surface-strong);
+}
+
+.detail-panel[open] .detail-content {
+  animation: fadeSlideIn var(--duration) var(--ease-out);
 }
 
 .detail-list {
@@ -1025,7 +1045,26 @@ summary:focus-visible,
 }
 
 .detail-list li + li {
-  margin-top: 6px;
+  margin-top: 4px;
+}
+
+.detail-list li::marker {
+  color: var(--green);
+}
+
+.panel-heading h2 {
+  margin: 2px 0 0;
+  font-size: 1.45rem;
+}
+
+/* Respiro entre o título de cada painel e o conteúdo. */
+.panel > .section-header {
+  margin-bottom: 14px;
+}
+
+.section-meta {
+  margin: -6px 0 14px;
+  font-size: 0.92rem;
 }
 
 /* Painel de Informações Globais */
@@ -1090,12 +1129,12 @@ summary:focus-visible,
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: #ffffff;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  transition: border-color var(--duration) ease, box-shadow var(--duration) ease, background-color var(--duration) ease;
   box-shadow: 0 4px 10px rgba(31, 42, 40, 0.02);
 }
 
+/* Sem deslocamento no hover: cartões grandes "pulando" atrapalham a leitura. */
 .step-card:hover {
-  transform: translateY(-2px);
   border-color: var(--border-strong);
   box-shadow: var(--shadow);
 }
@@ -1103,6 +1142,11 @@ summary:focus-visible,
 .step-card.is-checked {
   border-color: var(--green);
   background: linear-gradient(135deg, rgba(221, 232, 218, 0.4), #ffffff);
+}
+
+.step-card.is-checked .step-number {
+  background: var(--green);
+  color: #ffffff;
 }
 
 .step-card.is-critical {
@@ -1143,6 +1187,7 @@ summary:focus-visible,
   font-weight: 800;
   font-size: 1.1rem;
   flex: 0 0 auto;
+  transition: background-color var(--duration) ease, color var(--duration) ease;
 }
 
 .step-meta {
@@ -1203,24 +1248,24 @@ summary:focus-visible,
 
 .step-subactions {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-soft);
 }
 
 .step-subactions-title {
-  font-size: 0.86rem;
+  font-size: 0.76rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--green);
 }
 
+/* Subações como linhas de uma lista, não como cartões dentro do cartão. */
 .step-subaction-list {
   display: grid;
-  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1230,27 +1275,29 @@ summary:focus-visible,
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 10px;
-  align-items: start;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  background: #ffffff;
+  align-items: baseline;
+  padding: 8px 0;
   color: var(--text);
   font-size: 0.95rem;
   line-height: 1.55;
-  border: 1px solid var(--border);
+}
+
+.step-subaction-item + .step-subaction-item {
+  border-top: 1px solid var(--border);
 }
 
 .step-subaction-label {
   display: inline-grid;
   place-items: center;
-  min-width: 34px;
-  min-height: 28px;
-  padding: 2px 8px;
+  min-width: 32px;
+  padding: 1px 8px;
   border-radius: 999px;
-  background: var(--green-soft);
+  background: #ffffff;
+  border: 1px solid var(--border);
   font-weight: 800;
   color: var(--green);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .step-image {
@@ -1276,15 +1323,23 @@ summary:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: #ffffff;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--accent);
   white-space: nowrap;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
   cursor: pointer;
+  user-select: none;
+}
+
+.step-card.is-checked .step-check {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .step-check:hover {
@@ -1486,21 +1541,18 @@ summary:focus-visible,
   }
 
   .topbar,
-  .access-gate-card,
-  .status-panel,
   .sidebar-intro,
   .procedure-panel,
   .issues-panel,
   .hero,
   .panel,
   .empty-state-card {
-    padding: 18px;
+    padding: 16px;
   }
 
-  .panel-heading,
+  /* O título "Roteiros" e o contador continuam na mesma linha. */
   .section-header,
   .sequence-topline,
-  .hero-meta-row,
   .step-topline,
   .loading-meta,
   .issue-meta {
@@ -1508,15 +1560,11 @@ summary:focus-visible,
     align-items: flex-start;
   }
 
-  .status-actions,
-  .hero-actions,
-  .topbar-actions {
+  .status-actions {
     width: 100%;
   }
 
-  .status-actions .button,
-  .hero-actions .button,
-  .topbar-actions .button {
+  .status-actions .button {
     flex: 1 1 100%;
   }
 
@@ -1536,19 +1584,17 @@ summary:focus-visible,
   }
 
   .empty-state h2,
-  .hero h2,
-  .access-gate-copy h2 {
+  .hero h2 {
     font-size: 1.85rem;
   }
 
   .field input,
-  .field select,
-  .button {
-    min-height: 50px;
+  .field select {
+    min-height: 48px;
   }
 
-  .quick-picker {
-    padding: 12px 14px 14px;
+  .button:not(.button-compact) {
+    min-height: 46px;
   }
 
   .sidebar {
@@ -1604,8 +1650,7 @@ summary:focus-visible,
     padding: 10px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: rgba(255, 255, 255, 0.94);
-    backdrop-filter: blur(18px);
+    background: rgba(255, 255, 255, 0.97);
     box-shadow: 0 18px 36px rgba(31, 42, 40, 0.14);
   }
 
@@ -1630,13 +1675,8 @@ summary:focus-visible,
   }
 
   .step-number {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .step-check {
-    width: 100%;
-    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
   }
 
   .step-actions {
@@ -1651,15 +1691,6 @@ summary:focus-visible,
   .details-grid,
   .overview-grid {
     grid-template-columns: 1fr;
-  }
-
-  .step-subaction-item {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .step-subaction-label {
-    justify-self: start;
   }
 }
 
@@ -1684,14 +1715,15 @@ summary:focus-visible,
   .info-global-actions {
     width: 100%;
     display: flex;
-    gap: 8px;
-    justify-content: stretch;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .info-global-actions .button {
-    flex: 1;
-    min-height: 40px;
-    font-size: 0.88rem;
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
   }
 }
 
@@ -1707,56 +1739,73 @@ summary:focus-visible,
 }
 
 /* ==========================================================================
-   Biblioteca de Roteiros Compacta
+   Barra de navegação + status dos roteiros (uma linha só)
    ========================================================================== */
-.status-panel {
-  display: block;
-  padding: 12px clamp(18px, 1.6vw, 24px);
-  margin-bottom: 20px;
-  background: #ffffff;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  transition: padding 0.25s ease;
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
 }
 
-.status-panel.is-loading {
-  padding: 18px clamp(18px, 1.6vw, 24px);
+.status-panel {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: 0;
 }
 
 .status-container-compact {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 12px;
   width: 100%;
 }
 
 .status-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  color: var(--green);
 }
 
 .status-icon {
-  font-size: 1.2rem;
-  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  box-sizing: content-box;
+}
+
+.status-panel.is-loading .status-icon {
+  display: none;
 }
 
 .status-message {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .status-center {
-  flex: 1 1 200px;
-  max-width: 320px;
+  flex: 0 1 160px;
+  min-width: 100px;
   display: flex;
   align-items: center;
 }
@@ -1929,7 +1978,7 @@ body.focus-mode .content {
 }
 
 .step-subaction-item {
-  padding: 6px 12px !important;
+  padding: 7px 0 !important;
   font-size: 0.92rem !important;
 }
 
@@ -1940,12 +1989,11 @@ body.focus-mode .content {
 /* Navigation Tabs Bar */
 .main-nav {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface-muted);
-  padding: 6px;
+  padding: 5px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  margin-bottom: 24px;
   width: fit-content;
 }
 
@@ -1953,13 +2001,17 @@ body.focus-mode .content {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 40px;
   padding: 8px 18px;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--muted);
   background: transparent;
   border-radius: var(--radius-md);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
 }
 
 .nav-tab:hover {
@@ -1974,7 +2026,8 @@ body.focus-mode .content {
 }
 
 .nav-tab-icon {
-  font-size: 1.1rem;
+  width: 18px;
+  height: 18px;
 }
 
 @media (max-width: 580px) {
@@ -2816,6 +2869,79 @@ body.focus-mode .content {
 }
 
 /* ==========================================================================
+   Transições
+   Só opacidade nos contêineres: transform num ancestral quebraria a barra
+   fixa da sequência no celular durante a animação.
+   ========================================================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.main-section:not(.hidden),
+.view-block:not(.hidden),
+.procedure-view.is-entering,
+.teoria-active-module > *,
+#teoriaContentArea > * {
+  animation: fadeIn var(--duration) ease;
+}
+
+/* Cada passo revelado na sequência entra deslizando. */
+#sequenceStepsList > .step-card {
+  animation: fadeSlideIn 280ms var(--ease-out) both;
+}
+
+#sequenceStepsList > .step-card.is-revealed {
+  animation:
+    fadeSlideIn 280ms var(--ease-out) both,
+    stepRevealPulse 1.45s ease;
+}
+
+.sequence-mobile-progress {
+  display: none;
+}
+
+/* Seta do botão "Buscar e selecionar roteiro", gira quando a lista abre. */
+.mobile-sidebar-toggle::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin: 0 0 3px 4px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--duration) var(--ease-out), margin var(--duration) var(--ease-out);
+}
+
+.sidebar.is-expanded > .mobile-sidebar-toggle::after,
+.teoria-sidebar.is-expanded > .mobile-sidebar-toggle::after {
+  margin-bottom: -3px;
+  transform: rotate(-135deg);
+}
+
+.teoria-module-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ==========================================================================
    Otimizações de Responsividade Mobile e Usabilidade Geral
    ========================================================================== */
 
@@ -2908,8 +3034,8 @@ body.focus-mode .content {
     flex-direction: column !important;
     align-items: stretch !important;
     padding: 14px 16px !important;
-    margin-bottom: 14px !important;
-    gap: 14px !important;
+    margin-bottom: 12px !important;
+    gap: 8px !important;
   }
 
   .topbar-main {
@@ -2937,22 +3063,28 @@ body.focus-mode .content {
     line-height: 1.4 !important;
   }
 
+  /* "Limpar progresso" é pouco usado: botão pequeno, à direita. */
   .topbar-actions {
-    justify-content: stretch !important;
+    justify-content: flex-end !important;
     width: 100% !important;
   }
 
   .topbar-actions .button {
-    width: 100% !important;
-    min-height: 40px !important;
-    font-size: 0.88rem !important;
+    min-height: 34px !important;
+    padding: 4px 12px !important;
+    font-size: 0.82rem !important;
   }
 
   /* Navegação principal - abas confortáveis e sem corte */
+  .app-toolbar {
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
   .main-nav {
     display: flex !important;
     width: 100% !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 0 !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
@@ -2966,16 +3098,17 @@ body.focus-mode .content {
     white-space: nowrap !important;
   }
 
-  /* Biblioteca de roteiros carregados compacta */
+  /* Status dos roteiros: uma linha fina abaixo das abas */
   .status-panel {
-    padding: 10px 14px !important;
-    margin-bottom: 14px !important;
+    width: 100% !important;
+    padding: 0 4px !important;
   }
 
   .status-container-compact {
     flex-direction: row !important;
     flex-wrap: wrap !important;
-    gap: 10px !important;
+    justify-content: space-between !important;
+    gap: 6px 10px !important;
   }
 
   .status-left {
@@ -2983,7 +3116,7 @@ body.focus-mode .content {
   }
 
   .status-message {
-    font-size: 0.88rem !important;
+    font-size: 0.85rem !important;
   }
 
   .status-center {
@@ -2994,6 +3127,12 @@ body.focus-mode .content {
 
   .status-right {
     flex: 0 0 auto !important;
+  }
+
+  .status-right .button {
+    min-height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: 0.82rem !important;
   }
 
   /* Roteiros Práticos Mobile */
@@ -3017,16 +3156,37 @@ body.focus-mode .content {
     line-height: 1.5 !important;
   }
 
+  /* Seletor Estudo/Sequência na largura toda; Foco e Voltar lado a lado. */
   .hero-actions {
     display: grid !important;
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
     width: 100% !important;
+  }
+
+  .hero-actions .mode-switch {
+    grid-column: 1 / -1;
+    display: grid;
   }
 
   .hero-actions .button {
     width: 100% !important;
     min-height: 44px !important;
+    padding-inline: 10px !important;
+  }
+
+  .hero-actions > .button {
+    min-height: 40px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .hero-file-row,
+  .sidebar .sidebar-copy {
+    display: none !important;
+  }
+
+  .hero h2 {
+    margin: 0;
   }
 
   /* Checklist de Passos */
@@ -3046,16 +3206,43 @@ body.focus-mode .content {
   }
 
   .step-check {
-    min-height: 44px !important;
-    font-size: 0.92rem !important;
-    width: 100% !important;
-    justify-content: center !important;
+    min-height: 40px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .step-subactions {
+    padding: 10px 12px !important;
   }
 
   /* Modo Sequência Mobile */
   .sequence-summary {
     position: static !important;
     padding: 14px !important;
+  }
+
+  .sequence-controls {
+    display: none !important;
+  }
+
+  .sequence-mobile-progress {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 4px 2px;
+  }
+
+  .sequence-mobile-progress .progress-track {
+    flex: 1;
+    height: 6px;
+  }
+
+  .sequence-mobile-counter {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
   }
 
   .sequence-summary-actions {
@@ -3083,8 +3270,7 @@ body.focus-mode .content {
     padding: 8px !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius-lg) !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(12px) !important;
+    background: rgba(255, 255, 255, 0.97) !important;
     box-shadow: 0 10px 25px rgba(31, 42, 40, 0.15) !important;
   }
 
@@ -3095,7 +3281,25 @@ body.focus-mode .content {
   }
 
   #sequenceSection {
-    padding-bottom: 74px !important;
+    padding-bottom: 96px !important;
+  }
+
+  /* Sem altura mínima: no celular ela empurrava o cartão inicial para baixo. */
+  .content {
+    min-height: 0 !important;
+  }
+
+  .empty-state {
+    min-height: auto !important;
+    padding: 8px 0 !important;
+  }
+
+  .empty-state-card {
+    padding: 28px 20px !important;
+  }
+
+  .empty-state h2 {
+    font-size: 1.55rem !important;
   }
 
   /* Teoria Cirúrgica Mobile */
@@ -3221,6 +3425,23 @@ body.focus-mode .content {
     min-height: 36px !important;
     font-size: 0.95rem !important;
   }
+
+  .topbar-description {
+    display: none;
+  }
+
+  .panel,
+  .hero.panel {
+    padding: 14px !important;
+  }
+
+  .step-card {
+    padding: 12px !important;
+  }
+
+  .status-right .button span {
+    display: none;
+  }
 }
 
 /* Modo Foco Mobile */
@@ -3228,7 +3449,8 @@ body.focus-mode .content {
   body.focus-mode .sidebar,
   body.focus-mode .status-panel,
   body.focus-mode .mobile-sidebar-toggle,
-  body.focus-mode .main-nav {
+  body.focus-mode .main-nav,
+  body.focus-mode .app-toolbar {
     display: none !important;
   }
 }
