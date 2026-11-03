@@ -255,6 +255,25 @@ Formato:
 6. Aguarde a publicação.
 7. Abra a URL do GitHub Pages e clique em `Recarregar procedimentos`.
 
+## Versões
+
+A versão publicada aparece no rodapé do site; clicando nela abre a lista de novidades. Quem volta ao site depois de uma atualização vê um aviso discreto no topo.
+
+O histórico fica em `versoes.json`. Para publicar uma versão nova:
+
+```bash
+node scripts/nova_versao.js 1.4.0 "Título curto" "O que mudou" "Outra mudança"
+```
+
+O script acrescenta a versão em `versoes.json` e atualiza o `?v=` dos arquivos CSS e JS no `index.html`. Isso faz o navegador baixar sempre o CSS e o JS da mesma versão do HTML: o GitHub Pages guarda esses arquivos em cache por até 10 minutos, e misturar versões quebra o visual.
+
+Depois do commit, marque a versão no git:
+
+```bash
+git tag -a v1.4.0 -m "Título curto"
+git push origin v1.4.0
+```
+
 ## Como rodar localmente
 
 Para desenvolvimento, prefira um servidor local simples.

@@ -1,0 +1,60 @@
+{
+  "atual": "1.3.0",
+  "versoes": [
+    {
+      "versao": "1.3.0",
+      "data": "2026-11-03",
+      "titulo": "Marcador de versões",
+      "mudancas": [
+        "Versão atual no rodapé do site, com a lista de novidades de cada versão.",
+        "Aviso discreto quando o guia foi atualizado desde a sua última visita.",
+        "Arquivos sempre da mesma versão depois de cada publicação, sem precisar limpar o cache."
+      ]
+    },
+    {
+      "versao": "1.2.1",
+      "data": "2026-11-03",
+      "titulo": "Correção dos ícones",
+      "mudancas": [
+        "Corrige ícones que apareciam gigantes logo depois da atualização, quando o navegador ainda usava o visual antigo guardado."
+      ]
+    },
+    {
+      "versao": "1.2.0",
+      "data": "2026-11-03",
+      "titulo": "Visual mais limpo e fluido, sem senha",
+      "mudancas": [
+        "O guia abre direto, sem senha e sem bloqueio por inatividade.",
+        "Celular: cabeçalho e topo do roteiro mais compactos; o primeiro passo aparece bem antes.",
+        "Estudo e Sequência viram um seletor de duas posições.",
+        "Informações do procedimento em lista, com a quantidade de itens de cada seção.",
+        "Na sequência, cada passo novo entra deslizando e a barra do celular mostra o progresso.",
+        "Subações em linhas, passo concluído com número verde e ícones de linha nas cores do site."
+      ]
+    },
+    {
+      "versao": "1.1.0",
+      "data": "2026-11-03",
+      "titulo": "Correções e filtro por disciplina",
+      "mudancas": [
+        "No celular, o botão de buscar e selecionar roteiro volta a abrir a lista.",
+        "Marcar um passo não fecha mais os painéis abertos nem faz a tela pular.",
+        "Busca sem acento e também por materiais e etapas (ex.: \"puncao\", \"foley\").",
+        "Roteiros carregam bem mais rápido, direto do próprio site.",
+        "Novo filtro HC I / HC II; o sorteio respeita os filtros.",
+        "Categorias corrigidas (Dissecção venosa em Acessos vasculares, Sondagem vesical em Sondas e drenos).",
+        "Imagens da teoria mais leves e correções na aba Teoria."
+      ]
+    },
+    {
+      "versao": "1.0.0",
+      "data": "2026-06-13",
+      "titulo": "Primeira versão publicada",
+      "mudancas": [
+        "Roteiros práticos com Modo Estudo, Modo Sequência e Modo Foco.",
+        "Teoria cirúrgica com instrumental, paramentação, preparo do paciente, nós e perguntas rápidas.",
+        "Favoritos e progresso salvos no aparelho."
+      ]
+    }
+  ]
+}

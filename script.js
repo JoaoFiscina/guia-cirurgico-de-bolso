@@ -3,6 +3,8 @@ const CONFIG_PATH = "config/app-config.json";
 const MANIFEST_FILENAME = "procedimentos-manifest.json";
 const SUPPORTED_EXTENSIONS = [".json", ".txt"];
 const DEBUG_PREFIX = "[Guia LACIR]";
+const VERSIONS_PATH = "versoes.json";
+const SEEN_VERSION_KEY = "lacir-versao-vista";
 let catalogLoadToken = 0;
 // Roteiro cujos passos estão desenhados no modo sequência (permite atualizar só o último cartão).
 let renderedSequenceProcedure = null;
@@ -91,6 +93,7 @@ const appState = {
   favorites: [],
   showFavoritesOnly: false,
   focusMode: false,
+  versionInfo: null,
   statusDetail: "Aguardando inicialização."
 };
 
@@ -176,7 +179,16 @@ const elements = {
   practiceSectionTab: document.querySelector("#practiceSectionTab"),
   theorySectionTab: document.querySelector("#theorySectionTab"),
   practiceSection: document.querySelector("#practiceSection"),
-  theorySection: document.querySelector("#theorySection")
+  theorySection: document.querySelector("#theorySection"),
+  versionButton: document.querySelector("#versionButton"),
+  versionLabel: document.querySelector("#versionLabel"),
+  versionToast: document.querySelector("#versionToast"),
+  versionToastText: document.querySelector("#versionToastText"),
+  versionToastOpen: document.querySelector("#versionToastOpen"),
+  versionToastClose: document.querySelector("#versionToastClose"),
+  versionDialog: document.querySelector("#versionDialog"),
+  versionDialogClose: document.querySelector("#versionDialogClose"),
+  versionList: document.querySelector("#versionList")
 };
 
 document.addEventListener("DOMContentLoaded", initializeApp);
@@ -189,6 +201,7 @@ async function initializeApp() {
     bindEvents();
     initializeLogoMarks();
     render();
+    loadVersionInfo();
     await bootstrapCatalog();
   } catch (error) {
     logError("Falha inesperada na inicialização.", error);
@@ -581,9 +594,136 @@ function bindEvents() {
     });
   }
 
+  if (elements.versionButton && elements.versionDialog) {
+    elements.versionButton.addEventListener("click", openVersionDialog);
+    elements.versionToastOpen.addEventListener("click", openVersionDialog);
+    elements.versionToastClose.addEventListener("click", hideVersionToast);
+    elements.versionDialogClose.addEventListener("click", closeVersionDialog);
+    elements.versionDialog.addEventListener("click", (event) => {
+      // Clique no fundo escurecido (fora do conteúdo) fecha a janela.
+      if (event.target === elements.versionDialog) {
+        closeVersionDialog();
+      }
+    });
+  }
+
   document.addEventListener("keydown", handleSequenceShortcuts);
   window.addEventListener("scroll", updateSequenceSummaryState, { passive: true });
   window.addEventListener("resize", updateSequenceSummaryState);
+}
+
+async function loadVersionInfo() {
+  if (!elements.versionButton) {
+    return;
+  }
+
+  try {
+    const response = await fetch(buildAppUrl(VERSIONS_PATH), { cache: "no-cache" });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const current = safeText(data.atual);
+    const versions = Array.isArray(data.versoes) ? data.versoes.filter(isPlainObject) : [];
+
+    if (!current) {
+      return;
+    }
+
+    appState.versionInfo = { current, versions };
+    elements.versionLabel.textContent = current;
+    elements.versionButton.hidden = false;
+    renderVersionList(versions, current);
+    announceNewVersion(current, versions);
+  } catch (error) {
+    logWarn("Não foi possível ler o histórico de versões.", error);
+  }
+}
+
+function announceNewVersion(current, versions) {
+  let seenVersion = null;
+
+  try {
+    seenVersion = localStorage.getItem(SEEN_VERSION_KEY);
+  } catch (error) {
+    return;
+  }
+
+  // Na primeira visita só registra a versão: não há "atualização" para avisar.
+  if (!seenVersion) {
+    rememberSeenVersion(current);
+    return;
+  }
+
+  if (seenVersion === current) {
+    return;
+  }
+
+  const entry = versions.find((version) => version.versao === current);
+  const title = entry ? safeText(entry.titulo) : "";
+  elements.versionToastText.textContent = `Guia atualizado para a versão ${current}${title ? `: ${title}` : ""}.`;
+  elements.versionToast.hidden = false;
+}
+
+function rememberSeenVersion(version) {
+  try {
+    localStorage.setItem(SEEN_VERSION_KEY, version);
+  } catch (error) {
+    // Sem armazenamento (aba anônima, por exemplo): o aviso só não fica lembrado.
+  }
+}
+
+function renderVersionList(versions, current) {
+  elements.versionList.innerHTML = versions
+    .map((version) => {
+      const isCurrent = version.versao === current;
+      const changes = sanitizeStringArray(version.mudancas);
+
+      return `
+        <article class="version-entry ${isCurrent ? "is-current" : ""}">
+          <header class="version-entry-header">
+            <span class="badge ${isCurrent ? "category-badge" : "neutral-badge"}">v${escapeHtml(safeText(version.versao))}</span>
+            <h3>${escapeHtml(safeText(version.titulo))}</h3>
+            <time datetime="${escapeAttribute(safeText(version.data))}">${escapeHtml(formatVersionDate(version.data))}</time>
+          </header>
+          ${changes.length ? `<ul class="detail-list">${changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("")}</ul>` : ""}
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function formatVersionDate(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(safeText(isoDate));
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : safeText(isoDate);
+}
+
+function openVersionDialog() {
+  hideVersionToast();
+
+  if (typeof elements.versionDialog.showModal === "function") {
+    elements.versionDialog.showModal();
+  } else {
+    elements.versionDialog.setAttribute("open", "");
+  }
+}
+
+function closeVersionDialog() {
+  if (typeof elements.versionDialog.close === "function") {
+    elements.versionDialog.close();
+  } else {
+    elements.versionDialog.removeAttribute("open");
+  }
+}
+
+function hideVersionToast() {
+  elements.versionToast.hidden = true;
+
+  if (appState.versionInfo) {
+    rememberSeenVersion(appState.versionInfo.current);
+  }
 }
 
 async function bootstrapCatalog() {

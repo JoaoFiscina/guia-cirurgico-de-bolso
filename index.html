@@ -27,7 +27,7 @@
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23244C3A'/%3E%3Ctext x='32' y='38' text-anchor='middle' font-family='Arial,sans-serif' font-size='15' font-weight='700' fill='white'%3ELACIR%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="styles.css?v=1.2.1" />
+    <link rel="stylesheet" href="styles.css?v=1.3.0" />
   </head>
   <body>
     <div class="page-shell">
@@ -491,9 +491,34 @@
           </main>
         </div>
       </div>
+
+      <footer class="app-footer">
+        <span>Guia de Cirurgia de Bolso da LACIR</span>
+        <button type="button" id="versionButton" class="version-chip" hidden>
+          Versão <strong id="versionLabel"></strong>
+          <span class="version-chip-link">· Novidades</span>
+        </button>
+      </footer>
     </div>
 
-    <script src="script.js?v=1.2.1"></script>
-    <script src="teoria.js?v=1.2.1"></script>
+    <div id="versionToast" class="version-toast" role="status" hidden>
+      <span id="versionToastText"></span>
+      <button type="button" id="versionToastOpen" class="button button-primary button-compact">Ver novidades</button>
+      <button type="button" id="versionToastClose" class="version-toast-close" aria-label="Fechar aviso">&times;</button>
+    </div>
+
+    <dialog id="versionDialog" class="version-dialog" aria-labelledby="versionDialogTitle">
+      <div class="version-dialog-header">
+        <div>
+          <p class="eyebrow">Histórico de versões</p>
+          <h2 id="versionDialogTitle">Novidades do guia</h2>
+        </div>
+        <button type="button" id="versionDialogClose" class="version-toast-close" aria-label="Fechar">&times;</button>
+      </div>
+      <div id="versionList" class="version-list"></div>
+    </dialog>
+
+    <script src="script.js?v=1.3.0"></script>
+    <script src="teoria.js?v=1.3.0"></script>
   </body>
 </html>
