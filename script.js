@@ -2,8 +2,10 @@ const STORAGE_KEY = "atlas-cirurgico-de-bolso:v2";
 const CONFIG_PATH = "config/app-config.json";
 const MANIFEST_FILENAME = "procedimentos-manifest.json";
 const SUPPORTED_EXTENSIONS = [".json", ".txt"];
-const DEBUG_PREFIX = "[Guia LACIR]";
+const DEBUG_PREFIX = "[Guia]";
 const VERSIONS_PATH = "versoes.json";
+// As chaves salvas no navegador mantêm o prefixo antigo "lacir-": trocá-las apagaria
+// favoritos e progresso de quem já usa o guia.
 const SEEN_VERSION_KEY = "lacir-versao-vista";
 let catalogLoadToken = 0;
 // Roteiro cujos passos estão desenhados no modo sequência (permite atualizar só o último cartão).
@@ -48,7 +50,7 @@ const CATEGORY_RULES = [
 const DEFAULT_APP_CONFIG = {
   github: {
     owner: "JoaoFiscina",
-    repo: "Guia-cir-rgico-de-bolso-LACIR",
+    repo: "guia-cirurgico-de-bolso",
     branch: "main",
     proceduresPath: "procedimentos"
   }
@@ -199,7 +201,6 @@ async function initializeApp() {
   try {
     restoreState();
     bindEvents();
-    initializeLogoMarks();
     render();
     loadVersionInfo();
     await bootstrapCatalog();
@@ -236,50 +237,6 @@ function logError(message, details) {
   }
 
   console.error(`${DEBUG_PREFIX} ${message}`, details);
-}
-
-function initializeLogoMarks() {
-  document.querySelectorAll("[data-logo-src]").forEach((logoMark) => {
-    const image = logoMark.querySelector("img.lacir-logo");
-    const fallback = logoMark.querySelector(".lacir-logo-fallback");
-    const logoSrc = logoMark.dataset.logoSrc;
-
-    if (!image || !fallback || !logoSrc) {
-      return;
-    }
-
-    fallback.hidden = false;
-    image.hidden = true;
-
-    fetch(logoSrc, { method: "HEAD", cache: "no-cache" })
-      .then((response) => {
-        if (!response.ok) {
-          return;
-        }
-
-        image.addEventListener(
-          "load",
-          () => {
-            image.hidden = false;
-            fallback.hidden = true;
-          },
-          { once: true }
-        );
-        image.addEventListener(
-          "error",
-          () => {
-            image.hidden = true;
-            fallback.hidden = false;
-          },
-          { once: true }
-        );
-        image.src = logoSrc;
-      })
-      .catch(() => {
-        image.hidden = true;
-        fallback.hidden = false;
-      });
-  });
 }
 
 function bindEvents() {

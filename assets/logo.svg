@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Guia Cirúrgico de Bolso">
+  <rect width="64" height="64" rx="15" fill="#244c3a"/>
+  <!-- bisturi na diagonal: cabo branco, lâmina em verde-claro -->
+  <g transform="rotate(-40 32 32) translate(32 32) scale(1.14) translate(-32 -32)">
+    <rect x="7" y="28.2" width="27" height="7.6" rx="3.8" fill="#ffffff"/>
+    <rect x="12" y="31.15" width="15" height="1.7" rx="0.85" fill="#244c3a" opacity="0.35"/>
+    <path d="M33 30.1h3.6v3.8H33z" fill="#ffffff"/>
+    <path d="M36 29.2H51.5c2.6 0 5 .8 6.4 2.2-3.3 4.5-10.6 6.6-21.9 5.1z" fill="#ddeae2"/>
+  </g>
+</svg>

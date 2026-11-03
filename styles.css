@@ -213,7 +213,6 @@ summary:focus-visible,
   flex: 0 0 auto;
 }
 
-.lacir-logo-frame,
 .empty-logo-mark {
   display: inline-grid;
   place-items: center;
@@ -228,23 +227,19 @@ summary:focus-visible,
   overflow: hidden;
 }
 
-.lacir-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+/* Logo do guia (assets/logo.svg): o próprio desenho já é um quadrado arredondado. */
+.app-logo {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 23%;
+  box-shadow: 0 10px 20px rgba(31, 42, 40, 0.12);
 }
 
-.lacir-logo-fallback {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  border-radius: calc(var(--radius-md) - 2px);
-  background: var(--accent);
-  color: #ffffff;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+.empty-logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
 }
 
 .eyebrow {
@@ -1577,10 +1572,9 @@ summary:focus-visible,
     font-size: 1.75rem;
   }
 
-  .lacir-logo-frame {
+  .app-logo:not(.empty-logo) {
     width: 52px;
     height: 52px;
-    padding: 5px;
   }
 
   .empty-state h2,
@@ -1699,7 +1693,7 @@ summary:focus-visible,
     gap: 10px;
   }
 
-  .lacir-logo-frame {
+  .app-logo:not(.empty-logo) {
     width: 44px;
     height: 44px;
   }
@@ -3217,10 +3211,9 @@ body.focus-mode .content {
     gap: 12px !important;
   }
 
-  .lacir-logo-frame {
+  .app-logo:not(.empty-logo) {
     width: 44px !important;
     height: 44px !important;
-    padding: 3px !important;
   }
 
   .topbar-copy {
@@ -3585,7 +3578,7 @@ body.focus-mode .content {
     font-size: 1.15rem !important;
   }
 
-  .lacir-logo-frame {
+  .app-logo:not(.empty-logo) {
     width: 38px !important;
     height: 38px !important;
   }

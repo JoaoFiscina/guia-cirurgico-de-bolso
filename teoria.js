@@ -1,11 +1,11 @@
 /**
- * Guia Cirúrgico de Bolso da LACIR - Aba Teoria Cirúrgica
+ * Guia Cirúrgico de Bolso - Aba Teoria Cirúrgica
  * teoria.js - Motor de renderização modular e independente
  */
 
 (function () {
   const STORAGE_KEY_REVIEW = "lacir-teoria-review:v1";
-  const DEBUG_PREFIX = "[Teoria LACIR]";
+  const DEBUG_PREFIX = "[Teoria]";
 
   // Estado interno da teoria
   const teoriaState = {

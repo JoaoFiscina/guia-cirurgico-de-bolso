@@ -1,18 +1,20 @@
-# Atlas Cirúrgico de Bolso
+# Guia Cirúrgico de Bolso
+
+Site publicado: https://joaofiscina.github.io/guia-cirurgico-de-bolso/
 
 Site estático em `HTML`, `CSS` e `JavaScript` puro para estudo de habilidades cirúrgicas, preparado para funcionar muito bem no GitHub Pages.
 
-O diferencial desta versão é que os roteiros são carregados automaticamente a partir da pasta [procedimentos](/C:/GITHUB/GITS/HCII%20SITE/procedimentos), sem precisar editar `index.html` ou `script.js` a cada novo arquivo.
+O diferencial desta versão é que os roteiros são carregados automaticamente a partir da pasta [procedimentos](procedimentos), sem precisar editar `index.html` ou `script.js` a cada novo arquivo.
 
 ## Estrutura do projeto
 
-- [index.html](/C:/GITHUB/GITS/HCII%20SITE/index.html): interface principal.
-- [styles.css](/C:/GITHUB/GITS/HCII%20SITE/styles.css): visual responsivo.
-- [script.js](/C:/GITHUB/GITS/HCII%20SITE/script.js): carregamento, validação, importação local e modos de estudo.
-- [config/app-config.json](/C:/GITHUB/GITS/HCII%20SITE/config/app-config.json): configuração do repositório GitHub.
-- [procedimentos/](/C:/GITHUB/GITS/HCII%20SITE/procedimentos): pasta onde ficam os arquivos de procedimentos.
-- [procedimentos/procedimentos-manifest.json](/C:/GITHUB/GITS/HCII%20SITE/procedimentos/procedimentos-manifest.json): fallback local opcional.
-- [assets/imagens/](/C:/GITHUB/GITS/HCII%20SITE/assets/imagens): imagens usadas pelos procedimentos.
+- [index.html](index.html): interface principal.
+- [styles.css](styles.css): visual responsivo.
+- [script.js](script.js): carregamento, validação, importação local e modos de estudo.
+- [config/app-config.json](config/app-config.json): configuração do repositório GitHub.
+- [procedimentos/](procedimentos): pasta onde ficam os arquivos de procedimentos.
+- [procedimentos/procedimentos-manifest.json](procedimentos/procedimentos-manifest.json): fallback local opcional.
+- [assets/imagens/](assets/imagens): imagens usadas pelos procedimentos.
 
 ## Como o sistema lê a pasta automaticamente
 
@@ -208,7 +210,7 @@ Isso é útil para pré-visualizar um roteiro antes de subir o arquivo para o Gi
 
 ## Como configurar o repositório
 
-Edite [config/app-config.json](/C:/GITHUB/GITS/HCII%20SITE/config/app-config.json:1):
+Edite [config/app-config.json](config/app-config.json):
 
 ```json
 {
@@ -296,10 +298,10 @@ Abrir diretamente com `file://` pode bloquear o carregamento de arquivos locais 
 
 Esta versão já inclui:
 
-- [procedimentos/sonda_vesical_demora.json](/C:/GITHUB/GITS/HCII%20SITE/procedimentos/sonda_vesical_demora.json:1)
-- [procedimentos/reconstrucao_cutanea_por_enxertia.txt](/C:/GITHUB/GITS/HCII%20SITE/procedimentos/reconstrucao_cutanea_por_enxertia.txt:1)
+- [procedimentos/sonda_vesical_demora.json](procedimentos/sonda_vesical_demora.json)
+- [procedimentos/reconstrucao_cutanea_por_enxertia.txt](procedimentos/reconstrucao_cutanea_por_enxertia.txt)
 
 E também imagens relativas em:
 
-- [assets/imagens/sonda-vesical/](/C:/GITHUB/GITS/HCII%20SITE/assets/imagens/sonda-vesical)
-- [assets/imagens/reconstrucao-enxertia/](/C:/GITHUB/GITS/HCII%20SITE/assets/imagens/reconstrucao-enxertia)
+- [assets/imagens/sonda-vesical/](assets/imagens/sonda-vesical)
+- [assets/imagens/reconstrucao-enxertia/](assets/imagens/reconstrucao-enxertia)
