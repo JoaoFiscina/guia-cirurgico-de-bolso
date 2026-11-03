@@ -9,6 +9,7 @@ const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutos em milissegundos
 const MAX_SESSION_DURATION = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
 let inactivityTimer = null;
 let absoluteSessionTimer = null;
+let catalogLoadToken = 0;
 const DISPLAY_CATEGORIES = [
   "Lesões de pele e subcutâneo",
   "Suturas, feridas e curativos",
@@ -22,6 +23,29 @@ const DISPLAY_CATEGORIES = [
   "Punções e anestesia",
   "Cirurgia plástica e reconstrução",
   "Outros procedimentos"
+];
+// Cada termo casa com o início de uma palavra da categoria (ou do nome) já sem acentos.
+const CATEGORY_RULES = [
+  { category: "Cirurgia plástica e reconstrução", terms: ["enxertia", "retalho", "reconstrucao", "plastica", "zetaplastia"] },
+  { category: "Urologia", terms: ["urologia", "cistostomia", "vesical"] },
+  { category: "Procedimentos torácicos", terms: ["torac", "torax", "pleural", "pericardiocentese"] },
+  { category: "Trauma e emergência", terms: ["trauma", "lpd", "atls", "emergencia"] },
+  { category: "Cavidade abdominal e peritônio", terms: ["paracentese", "periton", "abdom"] },
+  {
+    category: "Via aérea e oxigenoterapia",
+    terms: ["via aerea", "vias aereas", "iot", "intubacao", "ambu", "mascara", "canula", "crico", "traqueostomia", "oxigenoterapia"]
+  },
+  {
+    category: "Acessos vasculares",
+    terms: ["acesso", "venos", "venosa", "arterial", "gasometria", "pam", "intraosse", "disseccao venosa"]
+  },
+  { category: "Sondas e drenos", terms: ["sonda", "sondagem", "dreno"] },
+  { category: "Suturas, feridas e curativos", terms: ["sutura", "ferida", "curativo", "pontos"] },
+  {
+    category: "Lesões de pele e subcutâneo",
+    terms: ["lesoes de pele", "lesao de pele", "pele", "subcutaneo", "lipoma", "cisto", "abscesso"]
+  },
+  { category: "Punções e anestesia", terms: ["puncao lombar", "anestesi", "bloqueio"] }
 ];
 const DEFAULT_APP_CONFIG = {
   github: {
@@ -54,6 +78,7 @@ const appState = {
   sequencePanelPinned: true,
   searchTerm: "",
   selectedCategory: "all",
+  selectedDiscipline: "all",
   progress: {},
   primarySource: {
     kind: "none",
@@ -80,6 +105,9 @@ const elements = {
   accessGateMessage: document.querySelector("#accessGateMessage"),
   searchInput: document.querySelector("#searchInput"),
   categoryFilter: document.querySelector("#categoryFilter"),
+  disciplineFilter: document.querySelector("#disciplineFilter"),
+  disciplineFilterField: document.querySelector("#disciplineFilterField"),
+  selectedDisciplineBadge: document.querySelector("#selectedDisciplineBadge"),
   procedureCountBadge: document.querySelector("#procedureCountBadge"),
   procedureList: document.querySelector("#procedureList"),
   loadMessage: document.querySelector("#loadMessage"),
@@ -149,6 +177,7 @@ const elements = {
   toggleFavoritesFilterButton: document.querySelector("#toggleFavoritesFilterButton"),
   selectedProcedureFavoriteButton: document.querySelector("#selectedProcedureFavoriteButton"),
   mobileSidebarToggle: document.querySelector("#mobileSidebarToggle"),
+  sidebar: document.querySelector(".sidebar"),
   focusModeButton: document.querySelector("#focusModeButton"),
   practiceSectionTab: document.querySelector("#practiceSectionTab"),
   theorySectionTab: document.querySelector("#theorySectionTab"),
@@ -216,7 +245,7 @@ function initializeLogoMarks() {
     fallback.hidden = false;
     image.hidden = true;
 
-    fetch(logoSrc, { method: "HEAD", cache: "no-store" })
+    fetch(logoSrc, { method: "HEAD", cache: "no-cache" })
       .then((response) => {
         if (!response.ok) {
           return;
@@ -325,7 +354,7 @@ function bindEvents() {
   }
 
   elements.searchInput.addEventListener("input", (event) => {
-    appState.searchTerm = event.target.value.trim().toLowerCase();
+    appState.searchTerm = event.target.value.trim();
     persistState();
     renderProcedureList();
     renderQuickProcedurePicker();
@@ -338,6 +367,15 @@ function bindEvents() {
     renderQuickProcedurePicker();
   });
 
+  if (elements.disciplineFilter) {
+    elements.disciplineFilter.addEventListener("change", (event) => {
+      appState.selectedDiscipline = event.target.value;
+      persistState();
+      renderProcedureList();
+      renderQuickProcedurePicker();
+    });
+  }
+
   elements.quickProcedureSelect.addEventListener("change", (event) => {
     const procedureId = safeText(event.target.value);
 
@@ -346,18 +384,12 @@ function bindEvents() {
     }
 
     selectProcedure(procedureId);
-    const sidebarEl = document.querySelector(".sidebar");
-    if (sidebarEl) {
-      sidebarEl.classList.remove("is-expanded");
-    }
+    revealProcedureAfterSelection();
   });
 
   elements.randomProcedureButton.addEventListener("click", () => {
     selectRandomProcedure();
-    const sidebarEl = document.querySelector(".sidebar");
-    if (sidebarEl) {
-      sidebarEl.classList.remove("is-expanded");
-    }
+    revealProcedureAfterSelection();
   });
 
   elements.reloadProceduresButton.addEventListener("click", async () => {
@@ -402,8 +434,14 @@ function bindEvents() {
     appState.mode = "study";
     appState.searchTerm = "";
     appState.selectedCategory = "all";
+    appState.selectedDiscipline = "all";
     elements.searchInput.value = "";
     elements.categoryFilter.value = "all";
+
+    if (elements.disciplineFilter) {
+      elements.disciplineFilter.value = "all";
+    }
+
     persistState();
     render();
     showMessage("Progresso local removido com sucesso.", "success");
@@ -422,15 +460,11 @@ function bindEvents() {
   });
 
   elements.backToStartButton.addEventListener("click", () => {
-    const procedure = getSelectedProcedure();
-
-    if (procedure) {
-      ensureProcedureProgress(procedure.id).sequenceIndex = 0;
-    }
-
+    // Mantém o ponto da sequência: voltar ao início não deve apagar o treino em andamento.
     appState.selectedProcedureId = null;
     persistState();
     render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   elements.clearChecklistButton.addEventListener("click", () => {
@@ -440,9 +474,19 @@ function bindEvents() {
       return;
     }
 
-    ensureProcedureProgress(procedure.id).checklist = [];
+    const progress = ensureProcedureProgress(procedure.id);
+
+    if (!progress.checklist.length) {
+      return;
+    }
+
+    if (!window.confirm(`Desmarcar os ${progress.checklist.length} passo(s) concluído(s) deste roteiro?`)) {
+      return;
+    }
+
+    progress.checklist = [];
     persistState();
-    renderStudyView(procedure);
+    renderStudySteps(procedure);
   });
 
   elements.previousStepButton.addEventListener("click", () => {
@@ -552,8 +596,11 @@ function bindEvents() {
 
   if (elements.hubViewListButton) {
     elements.hubViewListButton.addEventListener("click", () => {
+      // No celular a lista fica recolhida; precisa abrir antes de focar a busca.
+      setMobileSidebarExpanded(true);
+
       if (elements.searchInput) {
-        elements.searchInput.focus();
+        elements.searchInput.focus({ preventScroll: true });
         elements.searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     });
@@ -562,6 +609,7 @@ function bindEvents() {
   if (elements.hubRandomButton) {
     elements.hubRandomButton.addEventListener("click", () => {
       selectRandomProcedure();
+      revealProcedureAfterSelection();
     });
   }
 
@@ -570,8 +618,12 @@ function bindEvents() {
       appState.showFavoritesOnly = !appState.showFavoritesOnly;
       if (appState.showFavoritesOnly) {
         appState.selectedCategory = "all";
+        appState.selectedDiscipline = "all";
         if (elements.categoryFilter) {
           elements.categoryFilter.value = "all";
+        }
+        if (elements.disciplineFilter) {
+          elements.disciplineFilter.value = "all";
         }
         persistState();
       }
@@ -598,8 +650,9 @@ function bindEvents() {
   }
 
   if (elements.mobileSidebarToggle && elements.sidebar) {
+    elements.mobileSidebarToggle.setAttribute("aria-expanded", "false");
     elements.mobileSidebarToggle.addEventListener("click", () => {
-      elements.sidebar.classList.toggle("is-expanded");
+      setMobileSidebarExpanded(!elements.sidebar.classList.contains("is-expanded"));
     });
   }
 
@@ -757,29 +810,34 @@ async function reloadPrimaryProcedures() {
     showMessage("", "");
     logInfo("Iniciando leitura automática de procedimentos.", appState.config.github);
 
-    const githubResult = await loadProceduresFromGitHub(appState.config);
+    const loadToken = ++catalogLoadToken;
 
-    if (githubResult.ok) {
-      appState.primarySource = githubResult.source;
-      appState.baseProcedures = githubResult.entries;
-      appState.baseIssues = [...configIssues, ...githubResult.issues];
-      rebuildCatalog();
-      return;
-    }
-
-    // The manifest keeps the site usable on GitHub Pages if the public API is unavailable.
-    const manifestResult = await loadProceduresFromManifest(appState.config, githubResult.issues);
+    // O manifest fica no próprio site (GitHub Pages ou servidor local): é a fonte mais
+    // rápida e não depende do limite de 60 consultas/hora da API pública do GitHub.
+    const manifestResult = await loadProceduresFromManifest(appState.config);
 
     if (manifestResult.ok) {
       appState.primarySource = manifestResult.source;
       appState.baseProcedures = manifestResult.entries;
       appState.baseIssues = [...configIssues, ...manifestResult.issues];
       rebuildCatalog();
-      showMessage("A leitura direta do GitHub falhou, então o site usou o manifest local como fallback.", "warning");
+      await loadExtraProceduresFromGitHub(appState.config, manifestResult.fileNames, loadToken);
       return;
     }
 
-    const exampleResult = await loadProceduresFromLocalExamples(appState.config, manifestResult.issues);
+    // Sem manifest, a pasta inteira é lida pela API do GitHub.
+    const githubResult = await loadProceduresFromGitHub(appState.config, manifestResult.issues);
+
+    if (githubResult.ok) {
+      appState.primarySource = githubResult.source;
+      appState.baseProcedures = githubResult.entries;
+      appState.baseIssues = [...configIssues, ...githubResult.issues];
+      rebuildCatalog();
+      showMessage("O manifest do site não pôde ser lido, então os roteiros foram lidos direto do GitHub.", "warning");
+      return;
+    }
+
+    const exampleResult = await loadProceduresFromLocalExamples(appState.config, githubResult.issues);
 
     if (exampleResult.ok) {
       appState.primarySource = exampleResult.source;
@@ -825,7 +883,7 @@ async function loadAppConfig() {
   logInfo(`Tentando ler configuração em ${configUrl.href}`);
 
   try {
-    const response = await fetch(configUrl, { cache: "no-store" });
+    const response = await fetch(configUrl, { cache: "no-cache" });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -890,47 +948,106 @@ function normalizeAppConfig(data) {
   };
 }
 
-async function loadProceduresFromGitHub(config) {
-  const repoInfo = buildRepositoryLabel(config);
+async function fetchGitHubProcedureListing(config) {
   const folderPath = config.github.proceduresPath;
   const listingUrl = buildGitHubContentsUrl(config.github, folderPath);
 
-  setLoadingState(true, "Consultando pasta do GitHub", 0, 1);
-  setStatusDetail("Lendo pasta de procedimentos...");
   logInfo(`Consultando a pasta do GitHub em ${listingUrl}`);
 
+  // "no-cache" revalida com ETag; respostas 304 não contam no limite da API.
+  const response = await fetch(listingUrl, { cache: "no-cache" });
+
+  if (!response.ok) {
+    throw createGitHubHttpError(response, folderPath);
+  }
+
+  const payload = await response.json();
+
+  if (!Array.isArray(payload)) {
+    throw new Error("A API retornou um formato inesperado para a pasta de procedimentos.");
+  }
+
+  return payload
+    .filter((item) => item.type === "file")
+    .filter((item) => isProcedureFileName(item.name))
+    .filter((item) => item.name !== MANIFEST_FILENAME)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function toGitHubFileDescriptor(config, item) {
+  return {
+    fileName: item.name,
+    filePath: item.path,
+    fileUrl: item.download_url || buildRawGitHubUrl(config.github, item.path),
+    sourceKind: "github",
+    sourceLabel: "GitHub"
+  };
+}
+
+function isLocalDevelopmentHost() {
+  return (
+    window.location.protocol === "file:" ||
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname)
+  );
+}
+
+// Roteiros enviados pelo GitHub que ainda não entraram no manifest continuam aparecendo
+// sem editar o código. Falhas aqui são silenciosas: o manifest já carregou o site.
+async function loadExtraProceduresFromGitHub(config, knownFileNames, loadToken) {
+  if (isLocalDevelopmentHost()) {
+    return;
+  }
+
   try {
-    const response = await fetch(listingUrl, { cache: "no-store" });
+    const known = new Set(knownFileNames);
+    const extraFiles = (await fetchGitHubProcedureListing(config)).filter((item) => !known.has(item.name));
 
-    if (!response.ok) {
-      throw createGitHubHttpError(response, folderPath);
+    if (!extraFiles.length || loadToken !== catalogLoadToken) {
+      return;
     }
 
-    const payload = await response.json();
+    logInfo(`${extraFiles.length} roteiro(s) no GitHub fora do manifest.`, extraFiles.map((item) => item.name));
 
-    if (!Array.isArray(payload)) {
-      throw new Error("A API retornou um formato inesperado para a pasta de procedimentos.");
+    const aggregate = await loadProcedureFiles(
+      extraFiles.map((item) => toGitHubFileDescriptor(config, item)),
+      "Lendo roteiros novos do GitHub",
+      { silent: true }
+    );
+
+    if (loadToken !== catalogLoadToken) {
+      return;
     }
 
-    logInfo(`Listagem do GitHub recebida com ${payload.length} item(ns).`, payload.map((item) => item.name));
+    appState.baseProcedures = [...appState.baseProcedures, ...aggregate.entries];
+    appState.baseIssues = [...appState.baseIssues, ...aggregate.issues];
+    rebuildCatalog();
+  } catch (error) {
+    logWarn("Não foi possível conferir roteiros novos no GitHub.", error);
+  }
+}
 
-    const candidateFiles = payload
-      .filter((item) => item.type === "file")
-      .filter((item) => isProcedureFileName(item.name))
-      .filter((item) => item.name !== MANIFEST_FILENAME)
-      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+async function loadProceduresFromGitHub(config, previousIssues = []) {
+  const repoInfo = buildRepositoryLabel(config);
+  const folderPath = config.github.proceduresPath;
+
+  setLoadingState(true, "Consultando pasta do GitHub", 0, 1);
+  setStatusDetail("Lendo pasta de procedimentos no GitHub...");
+
+  try {
+    const candidateFiles = await fetchGitHubProcedureListing(config);
 
     logInfo(`Pasta listada com sucesso. ${candidateFiles.length} arquivo(s) candidato(s) encontrados.`, candidateFiles.map((item) => item.name));
     setStatusDetail(`${candidateFiles.length} arquivo(s) .txt/.json encontrados na pasta de procedimentos.`);
 
     if (!candidateFiles.length) {
       setLoadingState(false, "Pasta consultada", 1, 1);
-      setStatusDetail("Nenhum arquivo válido encontrado no GitHub. Tentando manifest local.");
+      setStatusDetail("Nenhum arquivo válido encontrado no GitHub. Tentando exemplos locais.");
 
       return {
         ok: false,
         entries: [],
         issues: [
+          ...previousIssues,
           createIssue(
             "warning",
             "github",
@@ -948,14 +1065,8 @@ async function loadProceduresFromGitHub(config) {
       };
     }
 
-    const aggregate = await loadProcedureFilesSequentially(
-      candidateFiles.map((item) => ({
-        fileName: item.name,
-        filePath: item.path,
-        fileUrl: item.download_url || buildRawGitHubUrl(config.github, item.path),
-        sourceKind: "github",
-        sourceLabel: "GitHub"
-      })),
+    const aggregate = await loadProcedureFiles(
+      candidateFiles.map((item) => toGitHubFileDescriptor(config, item)),
       "Lendo arquivos do GitHub"
     );
 
@@ -968,12 +1079,13 @@ async function loadProceduresFromGitHub(config) {
         ok: false,
         entries: [],
         issues: [
+          ...previousIssues,
           ...aggregate.issues,
           createIssue(
             "warning",
             "github",
             folderPath,
-            "Os arquivos do GitHub foram lidos, mas nenhum roteiro válido foi encontrado. O sistema tentará o manifest local."
+            "Os arquivos do GitHub foram lidos, mas nenhum roteiro válido foi encontrado. O sistema tentará os exemplos locais."
           )
         ],
         source: {
@@ -989,7 +1101,7 @@ async function loadProceduresFromGitHub(config) {
     return {
       ok: true,
       entries: aggregate.entries,
-      issues: aggregate.issues,
+      issues: [...previousIssues, ...aggregate.issues],
       source: {
         kind: "github",
         label: "GitHub",
@@ -1001,12 +1113,13 @@ async function loadProceduresFromGitHub(config) {
   } catch (error) {
     logError("Falha ao listar a pasta de procedimentos no GitHub.", error);
     setLoadingState(false, "Falha ao consultar GitHub", 1, 1);
-    setStatusDetail("Falha ao ler GitHub. Tentando manifest local...");
+    setStatusDetail("Falha ao ler GitHub. Tentando exemplos locais...");
 
     return {
       ok: false,
       entries: [],
       issues: [
+        ...previousIssues,
         createIssue(
           "error",
           "github",
@@ -1025,16 +1138,16 @@ async function loadProceduresFromGitHub(config) {
   }
 }
 
-async function loadProceduresFromManifest(config, previousIssues) {
+async function loadProceduresFromManifest(config, previousIssues = []) {
   const manifestPath = joinPaths(config.github.proceduresPath, MANIFEST_FILENAME);
   const manifestUrl = buildAppUrl(manifestPath);
 
-  setLoadingState(true, "Tentando manifest local", 0, 1);
-  setStatusDetail("Falha ao ler GitHub, usando manifest local.");
-  logInfo(`Tentando manifest local em ${manifestUrl.href}`);
+  setLoadingState(true, "Lendo lista de roteiros", 0, 1);
+  setStatusDetail("Lendo lista de roteiros do site...");
+  logInfo(`Lendo manifest em ${manifestUrl.href}`);
 
   try {
-    const response = await fetch(manifestUrl, { cache: "no-store" });
+    const response = await fetch(manifestUrl, { cache: "no-cache" });
 
     if (!response.ok) {
       throw new Error(
@@ -1050,7 +1163,7 @@ async function loadProceduresFromManifest(config, previousIssues) {
 
     if (!files.length) {
       setLoadingState(false, "Manifest lido", 1, 1);
-      setStatusDetail("Manifest lido, mas sem arquivos válidos. Tentando exemplos locais.");
+      setStatusDetail("Manifest lido, mas sem arquivos válidos. Tentando GitHub.");
 
       return {
         ok: false,
@@ -1074,20 +1187,20 @@ async function loadProceduresFromManifest(config, previousIssues) {
       };
     }
 
-    const aggregate = await loadProcedureFilesSequentially(
+    const aggregate = await loadProcedureFiles(
       files.map((file) => ({
         fileName: file.fileName,
         filePath: file.filePath,
         fileUrl: buildAppUrl(file.filePath).href,
         sourceKind: "manifest",
-        sourceLabel: "Manifest local"
+        sourceLabel: "Repositório"
       })),
-      "Lendo arquivos do manifest"
+      "Lendo roteiros"
     );
 
     logInfo(`Leitura do manifest concluída com ${aggregate.entries.length} procedimento(s) válido(s).`);
-    setLoadingState(false, "Leitura do manifest concluída", files.length, files.length);
-    setStatusDetail(`${aggregate.entries.length} roteiro(s) válidos carregados do manifest local.`);
+    setLoadingState(false, "Leitura dos roteiros concluída", files.length, files.length);
+    setStatusDetail(`${aggregate.entries.length} roteiro(s) válidos carregados.`);
 
     if (!aggregate.entries.length) {
       return {
@@ -1100,7 +1213,7 @@ async function loadProceduresFromManifest(config, previousIssues) {
             "warning",
             "manifest",
             manifestPath,
-            "O manifest foi lido, mas nenhum roteiro válido foi encontrado. O sistema tentará os exemplos locais."
+            "O manifest foi lido, mas nenhum roteiro válido foi encontrado. O sistema tentará ler a pasta pelo GitHub."
           )
         ],
         source: {
@@ -1116,16 +1229,8 @@ async function loadProceduresFromManifest(config, previousIssues) {
     return {
       ok: true,
       entries: aggregate.entries,
-      issues: [
-        ...previousIssues,
-        createIssue(
-          "warning",
-          "manifest",
-          manifestPath,
-          "Manifest local usado como fallback após falha na leitura automática do GitHub."
-        ),
-        ...aggregate.issues
-      ],
+      fileNames: files.map((file) => file.fileName),
+      issues: [...previousIssues, ...aggregate.issues],
       source: {
         kind: "manifest",
         label: "Manifest local",
@@ -1137,7 +1242,7 @@ async function loadProceduresFromManifest(config, previousIssues) {
   } catch (error) {
     logError("Falha ao usar o manifest local.", error);
     setLoadingState(false, "Falha no manifest", 1, 1);
-    setStatusDetail("Falha ao ler manifest, tentando exemplos locais.");
+    setStatusDetail("Falha ao ler manifest, tentando GitHub.");
 
     return {
       ok: false,
@@ -1164,7 +1269,7 @@ async function loadProceduresFromManifest(config, previousIssues) {
 
 async function loadProceduresFromLocalExamples(config, previousIssues) {
   setLoadingState(true, "Tentando exemplos locais", 0, 1);
-  setStatusDetail("Falha ao ler manifest, usando exemplos locais.");
+  setStatusDetail("Falha ao ler manifest e GitHub, usando exemplos locais.");
   logInfo("Tentando carregar os exemplos locais embutidos.", LOCAL_EXAMPLE_FILES);
 
   try {
@@ -1176,7 +1281,7 @@ async function loadProceduresFromLocalExamples(config, previousIssues) {
       sourceLabel: "Exemplos locais"
     }));
 
-    const aggregate = await loadProcedureFilesSequentially(files, "Lendo exemplos locais");
+    const aggregate = await loadProcedureFiles(files, "Lendo exemplos locais");
     logInfo(`Leitura dos exemplos locais concluída com ${aggregate.entries.length} procedimento(s) válido(s).`);
     setLoadingState(false, "Leitura dos exemplos concluída", files.length, files.length);
     setStatusDetail(`${aggregate.entries.length} roteiro(s) válidos carregados dos exemplos locais.`);
@@ -1289,48 +1394,63 @@ function normalizeManifestEntries(data, proceduresPath) {
     .sort((a, b) => a.fileName.localeCompare(b.fileName, "pt-BR"));
 }
 
-async function loadProcedureFilesSequentially(files, loadingLabel) {
-  const entries = [];
-  const issues = [];
+async function loadProcedureFiles(files, loadingLabel, { silent = false } = {}) {
+  let completed = 0;
 
-  setLoadingState(true, loadingLabel, 0, files.length);
+  if (!silent) {
+    setLoadingState(true, loadingLabel, 0, files.length);
+    setStatusDetail(`Baixando ${files.length} arquivo(s)...`);
+  }
 
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
-    setLoadingState(true, loadingLabel, index, files.length);
-    setStatusDetail(`Processando arquivo ${file.fileName}...`);
-    logInfo(`Processando arquivo ${file.fileName}.`, { source: file.sourceLabel, url: file.fileUrl });
+  // Todos os arquivos são baixados ao mesmo tempo; o resultado mantém a ordem da lista.
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const result = await loadProcedureFile(file);
+      completed += 1;
 
-    try {
-      const response = await fetch(file.fileUrl, { cache: "no-store" });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (!silent) {
+        setLoadingState(true, loadingLabel, completed, files.length);
       }
 
-      const text = await response.text();
-      logInfo(`Conteúdo de ${file.fileName} lido com ${text.length} caractere(s).`);
-      const result = parseProcedureDocument(text, file);
+      return result;
+    })
+  );
 
-      entries.push(...result.entries);
-      issues.push(...result.issues);
-      logInfo(`Arquivo ${file.fileName} interpretado com sucesso. ${result.entries.length} procedimento(s) válido(s).`);
-    } catch (error) {
-      logError(`Falha ao processar o arquivo ${file.fileName}.`, error);
-      issues.push(
+  return {
+    entries: results.flatMap((result) => result.entries),
+    issues: results.flatMap((result) => result.issues)
+  };
+}
+
+async function loadProcedureFile(file) {
+  try {
+    // "no-cache" revalida com o servidor: arquivo novo aparece, arquivo igual vem do cache.
+    const response = await fetch(file.fileUrl, { cache: "no-cache" });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const text = await response.text();
+    const result = parseProcedureDocument(text, file);
+    logInfo(`Arquivo ${file.fileName} interpretado. ${result.entries.length} procedimento(s) válido(s).`);
+
+    return result;
+  } catch (error) {
+    logError(`Falha ao processar o arquivo ${file.fileName}.`, error);
+
+    return {
+      entries: [],
+      issues: [
         createIssue(
           "error",
           file.sourceKind,
           file.fileName,
           `Falha ao baixar ou interpretar o arquivo ${file.filePath}: ${getReadableError(error)}`
         )
-      );
-    }
-
-    setLoadingState(true, loadingLabel, index + 1, files.length);
+      ]
+    };
   }
-
-  return { entries, issues };
 }
 
 function parseProcedureDocument(text, fileInfo) {
@@ -1521,6 +1641,7 @@ function normalizeProcedureRecord(rawProcedure, fileInfo, index) {
     id,
     nome,
     categoria,
+    disciplina: getProcedureDiscipline(rawProcedure),
     descricao_curta: descricaoCurta,
     indicacoes: sanitizeStringArray(rawProcedure.indicacoes),
     contraindicacoes: sanitizeStringArray(rawProcedure.contraindicacoes),
@@ -1648,6 +1769,7 @@ function rebuildCatalog() {
   appState.mergeIssues = mergeResult.issues;
   syncSelectionAndProgress();
   populateCategoryFilter();
+  populateDisciplineFilter();
   persistState();
   render();
   logInfo(`Catálogo reconstruído. ${appState.procedures.length} procedimento(s) final(is) disponível(is).`);
@@ -1729,6 +1851,7 @@ function restoreState() {
     appState.sequencePanelPinned = typeof saved.sequencePanelPinned === "boolean" ? saved.sequencePanelPinned : true;
     appState.searchTerm = typeof saved.searchTerm === "string" ? saved.searchTerm : "";
     appState.selectedCategory = typeof saved.selectedCategory === "string" ? saved.selectedCategory : "all";
+    appState.selectedDiscipline = typeof saved.selectedDiscipline === "string" ? saved.selectedDiscipline : "all";
     appState.progress = isPlainObject(saved.progress) ? saved.progress : {};
   } catch (error) {
     localStorage.removeItem(STORAGE_KEY);
@@ -1751,6 +1874,7 @@ function persistState() {
     sequencePanelPinned: appState.sequencePanelPinned,
     searchTerm: appState.searchTerm,
     selectedCategory: appState.selectedCategory,
+    selectedDiscipline: appState.selectedDiscipline,
     progress: appState.progress
   };
 
@@ -1796,6 +1920,31 @@ function populateCategoryFilter() {
   elements.categoryFilter.value = appState.selectedCategory;
 }
 
+function populateDisciplineFilter() {
+  if (!elements.disciplineFilter) {
+    return;
+  }
+
+  const disciplines = [...new Set(appState.procedures.map((item) => item.disciplina).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "pt-BR", { numeric: true })
+  );
+
+  elements.disciplineFilter.innerHTML = `
+    <option value="all">Todas as disciplinas</option>
+    ${disciplines.map((discipline) => `<option value="${escapeHtml(discipline)}">${escapeHtml(discipline)}</option>`).join("")}
+  `;
+
+  if (!disciplines.includes(appState.selectedDiscipline)) {
+    appState.selectedDiscipline = "all";
+  }
+
+  elements.disciplineFilter.value = appState.selectedDiscipline;
+
+  if (elements.disciplineFilterField) {
+    elements.disciplineFilterField.classList.toggle("hidden", !disciplines.length);
+  }
+}
+
 function render() {
   renderStatusPanel();
   renderIssuesPanel();
@@ -1837,8 +1986,12 @@ function renderQuickProcedurePicker() {
     pool.push(selectedProcedure);
   }
   
-  // Sort pool alphabetically by name to keep it organized
-  pool.sort((a, b) => a.nome.localeCompare(b.nome));
+  // Com busca ativa, quem tem o termo no nome vem primeiro; o resto segue em ordem alfabética.
+  const searchWords = normalizeSearchText(appState.searchTerm).split(/\s+/).filter(Boolean);
+  const matchesByName = (procedure) =>
+    searchWords.length > 0 && searchWords.every((word) => normalizeSearchText(procedure.nome).includes(word));
+
+  pool.sort((a, b) => Number(matchesByName(b)) - Number(matchesByName(a)) || a.nome.localeCompare(b.nome, "pt-BR"));
 
   elements.quickProcedureSelect.innerHTML = `
     <option value="">Escolha um roteiro...</option>
@@ -2011,27 +2164,21 @@ function renderSelectedProcedure() {
 
   elements.procedureView.classList.remove("hidden");
   elements.selectedCategory.textContent = getDisplayCategory(procedure);
+
+  if (elements.selectedDisciplineBadge) {
+    elements.selectedDisciplineBadge.textContent = procedure.disciplina;
+    elements.selectedDisciplineBadge.classList.toggle("hidden", !procedure.disciplina);
+  }
+
   elements.selectedStepSummary.textContent = `${procedure.passos.length} passos`;
+  // A origem só interessa quando é uma pré-visualização importada do computador.
   elements.selectedSourceBadge.textContent = procedure._meta.sourceLabel;
+  elements.selectedSourceBadge.classList.toggle("hidden", procedure._meta.sourceKind !== "local");
   elements.selectedFileLabel.textContent = `${procedure._meta.filePath}`;
   elements.selectedProcedureName.textContent = procedure.nome;
   elements.selectedProcedureDescription.textContent = procedure.descricao_curta;
 
-  // Favorito
-  const isFavorite = appState.favorites.includes(procedure.id);
-  const favoriteBtn = elements.selectedProcedureFavoriteButton;
-  if (favoriteBtn) {
-    if (isFavorite) {
-      favoriteBtn.classList.add("is-favorite");
-      favoriteBtn.innerHTML = "★";
-      favoriteBtn.title = "Remover dos favoritos";
-    } else {
-      favoriteBtn.classList.remove("is-favorite");
-      favoriteBtn.innerHTML = "☆";
-      favoriteBtn.title = "Adicionar aos favoritos";
-    }
-    favoriteBtn.dataset.procedureId = procedure.id;
-  }
+  renderHeroFavoriteButton(procedure);
 
   if (procedure.imagem_capa) {
     elements.heroImageWrapper.classList.remove("hidden");
@@ -2045,6 +2192,22 @@ function renderSelectedProcedure() {
 
   renderStudyView(procedure);
   renderSequenceView(procedure);
+}
+
+function renderHeroFavoriteButton(procedure) {
+  const favoriteBtn = elements.selectedProcedureFavoriteButton;
+
+  if (!favoriteBtn || !procedure) {
+    return;
+  }
+
+  const isFavorite = appState.favorites.includes(procedure.id);
+
+  favoriteBtn.classList.toggle("is-favorite", isFavorite);
+  favoriteBtn.textContent = isFavorite ? "★" : "☆";
+  favoriteBtn.title = isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos";
+  favoriteBtn.setAttribute("aria-pressed", String(isFavorite));
+  favoriteBtn.dataset.procedureId = procedure.id;
 }
 
 function renderEmptyState(selectedProcedure) {
@@ -2068,9 +2231,11 @@ function renderEmptyState(selectedProcedure) {
 }
 
 function renderStudyView(procedure) {
-  const progress = ensureProcedureProgress(procedure.id);
-  const checklistCount = progress.checklist.length;
+  renderStudyDetails(procedure);
+  renderStudySteps(procedure);
+}
 
+function renderStudyDetails(procedure) {
   elements.detailsContainer.innerHTML = [
     createDetailPanel("Indicações", procedure.indicacoes, false),
     createDetailPanel("Contraindicações", procedure.contraindicacoes, false),
@@ -2082,8 +2247,12 @@ function renderStudyView(procedure) {
   ]
     .filter(Boolean)
     .join("");
+}
 
-  elements.checklistProgressText.textContent = `${checklistCount} de ${procedure.passos.length} passos marcados como concluídos.`;
+function renderStudySteps(procedure) {
+  const progress = ensureProcedureProgress(procedure.id);
+
+  renderChecklistProgressText(procedure);
 
   elements.studyStepsList.innerHTML = procedure.passos
     .map((step) =>
@@ -2093,6 +2262,11 @@ function renderStudyView(procedure) {
       })
     )
     .join("");
+}
+
+function renderChecklistProgressText(procedure) {
+  const checklistCount = ensureProcedureProgress(procedure.id).checklist.length;
+  elements.checklistProgressText.textContent = `${checklistCount} de ${procedure.passos.length} passos marcados como concluídos.`;
 }
 
 function renderSequenceView(procedure) {
@@ -2292,14 +2466,38 @@ function createImageBlock(src, alt) {
 }
 
 function getFilteredProcedures() {
+  // Busca sem acento e por palavra: "puncao lombar" encontra "Punção lombar".
+  const searchWords = normalizeSearchText(appState.searchTerm).split(/\s+/).filter(Boolean);
+
   return appState.procedures.filter((procedure) => {
-    const matchesSearch = !appState.searchTerm || procedure.nome.toLowerCase().includes(appState.searchTerm);
+    const searchText = getProcedureSearchText(procedure);
+    const matchesSearch = searchWords.every((word) => searchText.includes(word));
     const matchesCategory =
       appState.selectedCategory === "all" || getDisplayCategory(procedure) === appState.selectedCategory;
+    const matchesDiscipline =
+      appState.selectedDiscipline === "all" || procedure.disciplina === appState.selectedDiscipline;
     const matchesFavorites = !appState.showFavoritesOnly || appState.favorites.includes(procedure.id);
 
-    return matchesSearch && matchesCategory && matchesFavorites;
+    return matchesSearch && matchesCategory && matchesDiscipline && matchesFavorites;
   });
+}
+
+function getProcedureSearchText(procedure) {
+  if (!procedure._meta.searchText) {
+    procedure._meta.searchText = normalizeSearchText(
+      [
+        procedure.nome,
+        procedure.categoria,
+        procedure.disciplina,
+        getDisplayCategory(procedure),
+        procedure.descricao_curta,
+        ...procedure.materiais,
+        ...procedure.passos.map((step) => step.titulo)
+      ].join(" ")
+    );
+  }
+
+  return procedure._meta.searchText;
 }
 
 function getDisplayCategory(procedure) {
@@ -2311,112 +2509,66 @@ function getDisplayCategory(procedure) {
 }
 
 function normalizeCategory(category, procedureName = "") {
+  const cleanCategory = stripDisciplinePrefix(category) || "Sem categoria";
+  const normalizedCategory = normalizeSearchText(cleanCategory);
+  const exactMatch = DISPLAY_CATEGORIES.find((item) => normalizeSearchText(item) === normalizedCategory);
+
+  // A categoria escrita no roteiro tem prioridade sobre o nome do procedimento.
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const categoryMatches = findCategoryMatches(normalizedCategory);
+  const nameMatches = findCategoryMatches(normalizeSearchText(procedureName));
+
+  // Categorias compostas, como "Vias aéreas e dissecção venosa", são desempatadas pelo nome.
+  if (categoryMatches.length) {
+    return categoryMatches.find((item) => nameMatches.includes(item)) || categoryMatches[0];
+  }
+
+  return nameMatches[0] || "Outros procedimentos";
+}
+
+function stripDisciplinePrefix(category) {
   const originalCategory = safeText(category);
-  const withoutLegacyPrefix = originalCategory
+  const withoutPrefix = originalCategory
     .replace(/^\s*(?:Habilidades\s+Cirúrgicas|HC)\s*(?:I{1,2}|1|2)?\s*\/\s*/i, "")
     .replace(/\bHCI{1,2}\b/gi, "")
     .replace(/\bHabilidades\s+Cirúrgicas\s+I{1,2}\b/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  const cleanCategory = withoutLegacyPrefix || originalCategory || "Sem categoria";
-  const normalizedSource = normalizeSearchText(`${cleanCategory} ${procedureName}`);
 
-  if (matchesAnyTerm(normalizedSource, ["enxertia", "retalho", "reconstrucao", "plastica", "cirurgia plastica"])) {
-    return "Cirurgia plástica e reconstrução";
+  return withoutPrefix || originalCategory;
+}
+
+function findCategoryMatches(normalizedText) {
+  return CATEGORY_RULES.filter((rule) => rule.terms.some((term) => matchesCategoryTerm(normalizedText, term))).map(
+    (rule) => rule.category
+  );
+}
+
+// O termo precisa começar uma palavra ("torac" casa com "torácica"); siglas curtas
+// precisam ser a palavra inteira ("ambu" não casa com "ambulatório").
+function matchesCategoryTerm(normalizedText, term) {
+  const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const wordEnd = term.length <= 4 ? "(?![a-z0-9])" : "";
+  return new RegExp(`(^|[^a-z0-9])${escapedTerm}${wordEnd}`).test(normalizedText);
+}
+
+function getProcedureDiscipline(rawProcedure) {
+  const explicitDiscipline = safeText(rawProcedure.disciplina);
+
+  if (explicitDiscipline) {
+    return explicitDiscipline;
   }
 
-  if (matchesAnyTerm(normalizedSource, ["cistostomia", "vesical"]) || /\burologia\b/.test(normalizedSource)) {
-    return "Urologia";
+  const match = safeText(rawProcedure.categoria).match(/^\s*(?:Habilidades\s+Cirúrgicas|HC)\s*(II|I|2|1)\b/i);
+
+  if (!match) {
+    return "";
   }
 
-  if (
-    matchesAnyTerm(normalizedSource, [
-      "toracocentese",
-      "drenagem toracica",
-      "caixa toracica",
-      "torax",
-      "pleural",
-      "pericardiocentese"
-    ])
-  ) {
-    return "Procedimentos torácicos";
-  }
-
-  if (matchesAnyTerm(normalizedSource, ["trauma", "lpd", "atls", "emergencia"])) {
-    return "Trauma e emergência";
-  }
-
-  if (
-    matchesAnyTerm(normalizedSource, ["paracentese", "peritoneal", "abdome", "abdominal", "cavidade abdominal"])
-  ) {
-    return "Cavidade abdominal e peritônio";
-  }
-
-  if (
-    matchesAnyTerm(normalizedSource, [
-      "via aerea",
-      "vias aereas",
-      "iot",
-      "intubacao",
-      "ambu",
-      "mascara",
-      "canula",
-      "crico",
-      "cricotireoidostomia",
-      "traqueostomia",
-      "oxigenoterapia"
-    ])
-  ) {
-    return "Via aérea e oxigenoterapia";
-  }
-
-  if (
-    matchesAnyTerm(normalizedSource, [
-      "acesso",
-      "venoso",
-      "venosa",
-      "arterial",
-      "gasometria",
-      "pam",
-      "intraossea",
-      "intraosseo",
-      "disseccao venosa"
-    ])
-  ) {
-    return "Acessos vasculares";
-  }
-
-  if (matchesAnyTerm(normalizedSource, ["sonda", "sondas", "dreno", "drenos"])) {
-    return "Sondas e drenos";
-  }
-
-  if (matchesAnyTerm(normalizedSource, ["sutura", "ferida", "curativo", "pontos"])) {
-    return "Suturas, feridas e curativos";
-  }
-
-  if (
-    matchesAnyTerm(normalizedSource, [
-      "lesoes de pele",
-      "lesao de pele",
-      "pele",
-      "subcutaneo",
-      "lipoma",
-      "cisto",
-      "abscesso"
-    ])
-  ) {
-    return "Lesões de pele e subcutâneo";
-  }
-
-  if (matchesAnyTerm(normalizedSource, ["puncao lombar", "anestesia", "anestesiologia", "bloqueio"])) {
-    return "Punções e anestesia";
-  }
-
-  if (DISPLAY_CATEGORIES.includes(cleanCategory)) {
-    return cleanCategory;
-  }
-
-  return "Outros procedimentos";
+  return /^(II|2)$/i.test(match[1]) ? "HC II" : "HC I";
 }
 
 function normalizeSearchText(value) {
@@ -2424,10 +2576,6 @@ function normalizeSearchText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-}
-
-function matchesAnyTerm(value, terms) {
-  return terms.some((term) => value.includes(term));
 }
 
 function compareDisplayCategories(a, b) {
@@ -2474,6 +2622,32 @@ function selectRandomProcedure() {
   }
 }
 
+function isCompactLayout() {
+  // Mesmo ponto de quebra do CSS em que a barra lateral vira um painel recolhível.
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
+function setMobileSidebarExpanded(expanded) {
+  if (!elements.sidebar) {
+    return;
+  }
+
+  elements.sidebar.classList.toggle("is-expanded", expanded);
+
+  if (elements.mobileSidebarToggle) {
+    elements.mobileSidebarToggle.setAttribute("aria-expanded", String(expanded));
+  }
+}
+
+function revealProcedureAfterSelection() {
+  if (!isCompactLayout() || !getSelectedProcedure()) {
+    return;
+  }
+
+  setMobileSidebarExpanded(false);
+  elements.procedureView.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function ensureProcedureProgress(procedureId) {
   if (!appState.progress[procedureId]) {
     appState.progress[procedureId] = {
@@ -2500,9 +2674,25 @@ function toggleChecklistStep(procedureId, stepNumber, checked) {
 
   const procedure = getSelectedProcedure();
 
-  if (procedure) {
-    renderStudyView(procedure);
+  if (!procedure) {
+    return;
   }
+
+  // Atualiza só o cartão marcado: redesenhar a lista inteira fechava os painéis
+  // abertos e fazia a tela pular.
+  const checkbox = elements.studyStepsList.querySelector(`[data-step-number="${stepNumber}"]`);
+  const card = checkbox ? checkbox.closest(".step-card") : null;
+
+  if (card) {
+    card.classList.toggle("is-checked", checked);
+    const label = checkbox.parentElement.querySelector("span");
+
+    if (label) {
+      label.textContent = checked ? "Concluído" : "Marcar como concluído";
+    }
+  }
+
+  renderChecklistProgressText(procedure);
 }
 
 function restartSequence() {
@@ -2948,7 +3138,10 @@ function toggleFavorite(procedureId) {
     appState.favorites.splice(index, 1);
   }
   saveFavorites();
-  render();
+  // Sem render() completo, para não redesenhar o roteiro aberto.
+  renderHeroFavoriteButton(getSelectedProcedure());
+  renderProcedureList();
+  renderQuickProcedurePicker();
 }
 
 function saveFavorites() {

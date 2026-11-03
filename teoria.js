@@ -26,30 +26,79 @@
 
   // Cache dos elementos DOM
   let dom = {};
+  let isInitialized = false;
 
-  // Inicializador principal
+  // Inicializador principal: chamado a cada abertura da aba, mas só configura uma vez
+  // (antes, cada abertura duplicava os ouvintes de eventos).
   function init() {
-    logInfo("Inicializando Teoria Cirúrgica...");
-    cacheElements();
-    loadReviewHistory();
-    setupLightbox();
+    if (!isInitialized) {
+      logInfo("Inicializando Teoria Cirúrgica...");
+      cacheElements();
+      loadReviewHistory();
+      setupLightbox();
 
-    const teoriaSidebarToggle = document.getElementById("mobileTeoriaSidebarToggle");
-    const teoriaSidebar = document.querySelector(".teoria-sidebar");
-    if (teoriaSidebarToggle && teoriaSidebar) {
-      if (!teoriaSidebarToggle.dataset.hasListener) {
+      const teoriaSidebarToggle = document.getElementById("mobileTeoriaSidebarToggle");
+      const teoriaSidebar = document.querySelector(".teoria-sidebar");
+      if (teoriaSidebarToggle && teoriaSidebar) {
         teoriaSidebarToggle.addEventListener("click", () => {
           teoriaSidebar.classList.toggle("is-expanded");
         });
-        teoriaSidebarToggle.dataset.hasListener = "true";
       }
+
+      if (dom.activeModule) {
+        dom.activeModule.addEventListener("click", handleModuleClick);
+      }
+
+      isInitialized = true;
     }
-    
+
+    // Se o manifesto falhou antes, tenta de novo ao reabrir a aba.
     if (!teoriaState.manifest) {
       fetchManifest();
-    } else {
-      renderSidebar();
     }
+  }
+
+  // Um único ouvinte para os botões gerados dinamicamente no módulo ativo.
+  function handleModuleClick(event) {
+    const trigger = event.target.closest("[data-teoria-action]");
+    if (!trigger || !dom.activeModule.contains(trigger)) return;
+
+    const action = trigger.dataset.teoriaAction;
+
+    if (action === "open-lightbox") {
+      window.TeoriaManager.openLightbox(trigger.dataset.src, trigger.dataset.alt);
+    } else if (action === "open-detail-image") {
+      const mainImg = document.getElementById("teoriaDetailMainImg");
+      window.TeoriaManager.openLightbox(mainImg ? mainImg.src : trigger.dataset.src, trigger.dataset.alt);
+    } else if (action === "show-details") {
+      showDetails(trigger.dataset.itemId);
+    } else if (action === "close-details") {
+      closeDetails();
+    } else if (action === "select-image") {
+      selectDetailImage(Number(trigger.dataset.index));
+    } else if (action === "restart-quiz") {
+      restartQuiz(trigger.dataset.onlyHard === "true");
+    } else if (action === "retry-module") {
+      retryActiveModule(trigger.dataset.moduleId, trigger.dataset.fileUrl);
+    }
+  }
+
+  // Comparação de texto sem acento e sem diferenciar maiúsculas.
+  function normalizeText(text) {
+    return String(text || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase();
+  }
+
+  // Embaralhamento uniforme (Fisher-Yates); sort com Math.random é enviesado.
+  function shuffle(list) {
+    const copy = [...list];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
   }
 
   // Escapar HTML para segurança contra aspas nas strings de attributes
@@ -186,7 +235,7 @@
     } catch (error) {
       logError("Falha ao carregar manifesto de teoria.", error);
       if (dom.modulesList) {
-        dom.modulesList.innerHTML = `<p class="error-message">Erro ao carregar módulos: ${error.message}</p>`;
+        dom.modulesList.innerHTML = `<p class="error-message">Erro ao carregar módulos: ${escapeHtml(error.message)}</p>`;
       }
     }
   }
@@ -204,10 +253,10 @@
       button.dataset.moduleId = modulo.id;
 
       button.innerHTML = `
-        <span class="teoria-module-icon">${modulo.icone || "📖"}</span>
+        <span class="teoria-module-icon">${escapeHtml(modulo.icone || "📖")}</span>
         <div class="teoria-module-info">
-          <strong class="teoria-module-title">${modulo.titulo}</strong>
-          <span class="teoria-module-desc">${modulo.descricao}</span>
+          <strong class="teoria-module-title">${escapeHtml(modulo.titulo)}</strong>
+          <span class="teoria-module-desc">${escapeHtml(modulo.descricao)}</span>
         </div>
       `;
 
@@ -228,6 +277,8 @@
 
     logInfo(`Carregando módulo: ${moduleId} (${fileUrl})`);
     teoriaState.activeModuleId = moduleId;
+    // Sem isto, uma falha deixava os dados do módulo anterior e o "Tentar novamente" não fazia nada.
+    teoriaState.activeModuleData = null;
     const teoriaSidebar = document.querySelector(".teoria-sidebar");
     if (teoriaSidebar) {
       teoriaSidebar.classList.remove("is-expanded");
@@ -276,8 +327,8 @@
         dom.activeModule.innerHTML = `
           <div class="panel error-panel">
             <h3>Falha ao carregar conteúdo</h3>
-            <p>${error.message}</p>
-            <button type="button" class="button button-primary" onclick="window.TeoriaManager.retryActiveModule('${moduleId}', '${fileUrl}')">Tentar novamente</button>
+            <p>${escapeHtml(error.message)}</p>
+            <button type="button" class="button button-primary" data-teoria-action="retry-module" data-module-id="${escapeHtml(moduleId)}" data-file-url="${escapeHtml(fileUrl)}">Tentar novamente</button>
           </div>
         `;
       }
@@ -288,7 +339,7 @@
   function initializeQuizData() {
     const questions = teoriaState.activeModuleData.perguntas || [];
     // Embaralhar as perguntas para uma melhor experiência
-    teoriaState.quiz.questions = [...questions].sort(() => Math.random() - 0.5);
+    teoriaState.quiz.questions = shuffle(questions);
     teoriaState.quiz.currentIndex = 0;
     teoriaState.quiz.revealed = false;
   }
@@ -303,14 +354,14 @@
       <!-- Cabeçalho do Módulo -->
       <header class="teoria-header">
         <div class="teoria-header-meta">
-          <span class="badge category-badge">${data.categoria}</span>
+          <span class="badge category-badge">${escapeHtml(data.categoria)}</span>
           <span class="badge neutral-badge" id="teoriaModuleStats"></span>
         </div>
         <div class="teoria-title-row">
-          <h2>${data.titulo}</h2>
+          <h2>${escapeHtml(data.titulo)}</h2>
         </div>
-        <p class="teoria-description">${data.descricao}</p>
-        ${data.fonte ? `<p class="teoria-fonte">Fonte: ${data.fonte}</p>` : ""}
+        <p class="teoria-description">${escapeHtml(data.descricao)}</p>
+        ${data.fonte ? `<p class="teoria-fonte">Fonte: ${escapeHtml(data.fonte)}</p>` : ""}
       </header>
 
       <!-- Abas de Modo -->
@@ -417,11 +468,11 @@
         <div class="teoria-general-topics">
           ${data.topicos_gerais.map(topic => `
             <div class="teoria-topic-panel">
-              <h3>${topic.titulo}</h3>
+              <h3>${escapeHtml(topic.titulo)}</h3>
               <div class="teoria-topic-grid">
                 <div class="teoria-topic-content">
                   <ul class="teoria-detail-list">
-                    ${topic.conteudo.map(item => `<li>${item}</li>`).join("")}
+                    ${(topic.conteudo || []).map(item => `<li>${escapeHtml(item)}</li>`).join("")}
                   </ul>
                 </div>
                 ${(() => {
@@ -429,8 +480,8 @@
                   const firstImg = topicImages.length > 0 ? topicImages[0] : null;
                   const firstImgSrc = firstImg ? firstImg.src : "";
                   return firstImgSrc ? `
-                    <div class="teoria-topic-image" style="cursor: pointer;" onclick="window.TeoriaManager.openLightbox('${firstImgSrc}', '${escapeHtml(topic.titulo)}')">
-                      <img src="${firstImgSrc}" alt="${escapeHtml(topic.titulo)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
+                    <div class="teoria-topic-image" style="cursor: pointer;" data-teoria-action="open-lightbox" data-src="${escapeHtml(firstImgSrc)}" data-alt="${escapeHtml(topic.titulo)}">
+                      <img src="${escapeHtml(firstImgSrc)}" alt="${escapeHtml(topic.titulo)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
                       <div class="teoria-card-fallback-icon" style="display: none; flex-direction: column; gap: 8px; align-items: center; justify-content: center; width: 100%; height: 100%;">
                         <span style="font-size: 3rem; opacity: 0.5;">📖</span>
                         <span style="font-size: 0.8rem; color: var(--muted); font-weight: 500;">Imagem em revisão</span>
@@ -459,8 +510,8 @@
               Todos os grupos
             </button>
             ${data.grupos.map(grupo => `
-              <button type="button" class="teoria-filter-chip ${teoriaState.activeGroupFilter === grupo.id ? "is-active" : ""}" data-group="${grupo.id}">
-                ${grupo.nome}
+              <button type="button" class="teoria-filter-chip ${teoriaState.activeGroupFilter === grupo.id ? "is-active" : ""}" data-group="${escapeHtml(grupo.id)}">
+                ${escapeHtml(grupo.nome)}
               </button>
             `).join("")}
           </div>
@@ -470,7 +521,7 @@
       // Campo de busca
       searchHtml = `
         <div class="teoria-search-container">
-          <input type="search" id="teoriaSearchInput" placeholder="Buscar instrumentais, funções ou palavras-chave..." value="${teoriaState.searchTerm}" autocomplete="off" />
+          <input type="search" id="teoriaSearchInput" placeholder="Buscar instrumentais, funções ou palavras-chave..." value="${escapeHtml(teoriaState.searchTerm)}" autocomplete="off" />
         </div>
       `;
 
@@ -496,7 +547,7 @@
     const searchInput = document.getElementById("teoriaSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
-        teoriaState.searchTerm = e.target.value.trim().toLowerCase();
+        teoriaState.searchTerm = e.target.value.trim();
         renderGridItems();
       });
     }
@@ -530,11 +581,11 @@
 
       // Filtro de busca textual
       if (teoriaState.searchTerm) {
-        const query = teoriaState.searchTerm;
-        const nameMatch = (item.nome || item.titulo || "").toLowerCase().includes(query);
-        const functionMatch = (item.funcao || item.descricao || "").toLowerCase().includes(query);
-        const recogMatch = (item.como_reconhecer || "").toLowerCase().includes(query);
-        const tagMatch = item.tags ? item.tags.some(t => t.toLowerCase().includes(query)) : false;
+        const query = normalizeText(teoriaState.searchTerm);
+        const nameMatch = normalizeText(item.nome || item.titulo).includes(query);
+        const functionMatch = normalizeText(item.funcao || item.descricao).includes(query);
+        const recogMatch = normalizeText(item.como_reconhecer).includes(query);
+        const tagMatch = item.tags ? item.tags.some(t => normalizeText(t).includes(query)) : false;
 
         return nameMatch || functionMatch || recogMatch || tagMatch;
       }
@@ -553,7 +604,7 @@
 
     grid.innerHTML = filteredItems.map(item => {
       const groupInfo = groups.find(g => g.id === item.grupo);
-      const badgeStyle = groupInfo ? `background-color: ${groupInfo.cor || "var(--green)"}` : `background-color: var(--green)`;
+      const badgeStyle = `background-color: ${escapeHtml((groupInfo && groupInfo.cor) || "var(--green)")}`;
       const title = item.nome || item.titulo || "Sem Nome";
       const subtitle = item.funcao || item.descricao || "";
       
@@ -562,10 +613,10 @@
       const mainImgSrc = mainImg ? mainImg.src : "";
       
       return `
-        <div class="teoria-card" id="card-${item.id}">
+        <div class="teoria-card" id="card-${escapeHtml(item.id)}">
           ${mainImgSrc ? `
             <div class="teoria-card-image">
-              <img src="${mainImgSrc}" alt="${escapeHtml(mainImg.alt)}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
+              <img src="${escapeHtml(mainImgSrc)}" alt="${escapeHtml(mainImg.alt)}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
               <div class="teoria-card-fallback-icon" style="display: none; flex-direction: column; gap: 8px; align-items: center; justify-content: center; width: 100%; height: 100%;">
                 <span style="font-size: 2.8rem; opacity: 0.5;">${teoriaState.activeModuleId === "instrumental_cirurgico" ? "🔧" : "📖"}</span>
                 <span style="font-size: 0.8rem; color: var(--muted); font-weight: 500;">Imagem em revisão</span>
@@ -574,15 +625,15 @@
           ` : ""}
           
           ${groupInfo ? `
-            <span class="teoria-card-badge" style="${badgeStyle}">${groupInfo.nome}</span>
+            <span class="teoria-card-badge" style="${badgeStyle}">${escapeHtml(groupInfo.nome)}</span>
           ` : ""}
 
           <div class="teoria-card-info">
-            <h4 class="teoria-card-title">${title}</h4>
-            <p class="teoria-card-desc">${subtitle.length > 90 ? subtitle.slice(0, 87) + "..." : subtitle}</p>
+            <h4 class="teoria-card-title">${escapeHtml(title)}</h4>
+            <p class="teoria-card-desc">${escapeHtml(subtitle.length > 90 ? subtitle.slice(0, 87) + "..." : subtitle)}</p>
           </div>
 
-          <button type="button" class="button button-secondary button-compact teoria-card-action" onclick="window.TeoriaManager.showDetails('${item.id}')">
+          <button type="button" class="button button-secondary button-compact teoria-card-action" data-teoria-action="show-details" data-item-id="${escapeHtml(item.id)}">
             🔍 Ver Detalhes
           </button>
         </div>
@@ -615,20 +666,20 @@
       <div class="teoria-detail-panel">
         <div class="teoria-detail-header">
           <div class="teoria-detail-title-col">
-            <span class="badge category-badge" style="background-color: ${groupInfo ? groupInfo.cor : "var(--green)"}">${groupInfo ? groupInfo.nome : "Tópico"}</span>
-            <h3>${title}</h3>
+            <span class="badge category-badge" style="background-color: ${escapeHtml((groupInfo && groupInfo.cor) || "var(--green)")}">${escapeHtml(groupInfo ? groupInfo.nome : "Tópico")}</span>
+            <h3>${escapeHtml(title)}</h3>
           </div>
-          <button type="button" class="button button-ghost button-compact" onclick="window.TeoriaManager.closeDetails()" style="font-size: 1.5rem; line-height: 1;">×</button>
+          <button type="button" class="button button-ghost button-compact" data-teoria-action="close-details" aria-label="Fechar detalhes" style="font-size: 1.5rem; line-height: 1;">×</button>
         </div>
 
         <div class="teoria-detail-grid" ${images.length === 0 ? 'style="grid-template-columns: 1fr;"' : ''}>
           <!-- Bloco Imagem -->
           ${images.length > 0 ? `
             <div class="teoria-detail-image-box-wrapper">
-              <div class="teoria-detail-image-box" style="cursor: pointer;" 
-                   onclick="window.TeoriaManager.openLightbox(document.getElementById('teoriaDetailMainImg') ? document.getElementById('teoriaDetailMainImg').src : '${selectedImgSrc}', '${escapeHtml(title)}')">
+              <div class="teoria-detail-image-box" style="cursor: pointer;"
+                   data-teoria-action="open-detail-image" data-src="${escapeHtml(selectedImgSrc)}" data-alt="${escapeHtml(title)}">
                 ${selectedImgSrc ? `
-                  <img id="teoriaDetailMainImg" src="${selectedImgSrc}" alt="${escapeHtml(selectedImg.alt)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
+                  <img id="teoriaDetailMainImg" src="${escapeHtml(selectedImgSrc)}" alt="${escapeHtml(selectedImg.alt)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"/>
                 ` : ""}
                 <div class="teoria-card-fallback-icon" style="display: ${selectedImgSrc ? "none" : "flex"}; flex-direction: column; gap: 8px; align-items: center; justify-content: center; width: 100%; height: 100%;">
                   <span style="font-size: 4rem; opacity: 0.5;">${teoriaState.activeModuleId === "instrumental_cirurgico" ? "🔧" : "📖"}</span>
@@ -637,7 +688,7 @@
               </div>
               
               ${selectedImg && selectedImg.legenda ? `
-                <p class="teoria-detail-image-caption" id="teoriaDetailImageCaption">${selectedImg.legenda}</p>
+                <p class="teoria-detail-image-caption" id="teoriaDetailImageCaption">${escapeHtml(selectedImg.legenda)}</p>
               ` : `
                 <p class="teoria-detail-image-caption" id="teoriaDetailImageCaption" style="display: none;"></p>
               `}
@@ -645,9 +696,9 @@
               ${images.length > 1 ? `
                 <div class="teoria-detail-gallery-thumbnails">
                   ${images.map((img, idx) => `
-                    <button type="button" class="teoria-detail-thumbnail ${idx === activeIndex ? 'is-active' : ''}" 
-                            onclick="window.TeoriaManager.selectDetailImage(${idx})" aria-label="Visualizar imagem ${idx + 1}">
-                      <img src="${img.src}" alt="${escapeHtml(img.alt)}" loading="lazy" />
+                    <button type="button" class="teoria-detail-thumbnail ${idx === activeIndex ? 'is-active' : ''}"
+                            data-teoria-action="select-image" data-index="${idx}" aria-label="Visualizar imagem ${idx + 1}">
+                      <img src="${escapeHtml(img.src)}" alt="${escapeHtml(img.alt)}" loading="lazy" />
                     </button>
                   `).join("")}
                 </div>
@@ -660,13 +711,13 @@
             ${item.funcao ? `
               <div>
                 <h5 class="teoria-detail-section-title">Função Principal</h5>
-                <p class="teoria-detail-text">${item.funcao}</p>
+                <p class="teoria-detail-text">${escapeHtml(item.funcao)}</p>
               </div>
             ` : item.conteudo ? `
               <div>
                 <h5 class="teoria-detail-section-title">Conteúdo</h5>
                 <ul class="teoria-detail-list">
-                  ${item.conteudo.map(li => `<li>${li}</li>`).join("")}
+                  ${item.conteudo.map(li => `<li>${escapeHtml(li)}</li>`).join("")}
                 </ul>
               </div>
             ` : ""}
@@ -675,7 +726,7 @@
               <div>
                 <h5 class="teoria-detail-section-title">Características Físicas</h5>
                 <ul class="teoria-detail-list">
-                  ${item.caracteristicas.map(carac => `<li>${carac}</li>`).join("")}
+                  ${item.caracteristicas.map(carac => `<li>${escapeHtml(carac)}</li>`).join("")}
                 </ul>
               </div>
             ` : ""}
@@ -684,7 +735,7 @@
               <div>
                 <h5 class="teoria-detail-section-title">Aplicações Clínicas / Indicações</h5>
                 <ul class="teoria-detail-list">
-                  ${item.usos.map(uso => `<li>${uso}</li>`).join("")}
+                  ${item.usos.map(uso => `<li>${escapeHtml(uso)}</li>`).join("")}
                 </ul>
               </div>
             ` : ""}
@@ -692,14 +743,14 @@
             ${item.como_reconhecer ? `
               <div>
                 <h5 class="teoria-detail-section-title">Como Reconhecer Facilmente</h5>
-                <p class="teoria-detail-text">${item.como_reconhecer}</p>
+                <p class="teoria-detail-text">${escapeHtml(item.como_reconhecer)}</p>
               </div>
             ` : ""}
 
             ${item.pegadinha ? `
               <div class="teoria-pegadinha-box">
                 <h5 class="teoria-detail-section-title">⚠️ Pegadinha de Prova / Dica Técnica</h5>
-                <p class="teoria-detail-text" style="font-weight: 500;">${item.pegadinha}</p>
+                <p class="teoria-detail-text" style="font-weight: 500;">${escapeHtml(item.pegadinha)}</p>
               </div>
             ` : ""}
           </div>
@@ -749,14 +800,14 @@
 
         <!-- Flashcard -->
         <div class="teoria-flashcard ${quiz.revealed ? "is-revealed" : ""}" id="teoriaFlashcard">
-          <span class="teoria-flashcard-tag">${question.grupo ? question.grupo.toUpperCase() : "TEORIA"}</span>
-          
-          <p class="teoria-flashcard-question">${question.pergunta}</p>
-          
+          <span class="teoria-flashcard-tag">${escapeHtml(question.grupo ? question.grupo.toUpperCase() : "TEORIA")}</span>
+
+          <p class="teoria-flashcard-question">${escapeHtml(question.pergunta)}</p>
+
           ${quiz.revealed ? `
             <div class="teoria-flashcard-answer-box">
               <p class="teoria-detail-section-title">Resposta Educacional</p>
-              <p class="teoria-flashcard-answer">${question.resposta}</p>
+              <p class="teoria-flashcard-answer">${escapeHtml(question.resposta)}</p>
             </div>
           ` : `
             <span class="teoria-flashcard-hint">Clique no card para revelar a resposta</span>
@@ -851,11 +902,11 @@
         </div>
 
         <div style="display: flex; gap: 12px; margin-top: 16px;">
-          <button type="button" class="button button-secondary" onclick="window.TeoriaManager.restartQuiz(false)" style="flex: 1;">
+          <button type="button" class="button button-secondary" data-teoria-action="restart-quiz" data-only-hard="false" style="flex: 1;">
             🔁 Repetir tudo
           </button>
           ${hardCount > 0 ? `
-            <button type="button" class="button button-primary" onclick="window.TeoriaManager.restartQuiz(true)" style="flex: 1;">
+            <button type="button" class="button button-primary" data-teoria-action="restart-quiz" data-only-hard="true" style="flex: 1;">
               🎯 Revisar erros
             </button>
           ` : ""}
@@ -876,7 +927,7 @@
       }
     } else {
       // Repetir tudo e reembaralhar
-      teoriaState.quiz.questions = [...allQuestions].sort(() => Math.random() - 0.5);
+      teoriaState.quiz.questions = shuffle(allQuestions);
     }
 
     teoriaState.quiz.currentIndex = 0;

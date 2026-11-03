@@ -213,11 +213,11 @@
               </p>
 
               <label class="field">
-                <span>Buscar por nome</span>
+                <span>Buscar</span>
                 <input
                   type="search"
                   id="searchInput"
-                  placeholder="Ex.: punção lombar, paracentese, sutura..."
+                  placeholder="Nome, material ou etapa (ex.: punção, foley)"
                   autocomplete="off"
                 />
               </label>
@@ -226,6 +226,13 @@
                 <span>Categoria</span>
                 <select id="categoryFilter">
                   <option value="all">Todas as categorias</option>
+                </select>
+              </label>
+
+              <label class="field hidden" id="disciplineFilterField">
+                <span>Disciplina</span>
+                <select id="disciplineFilter">
+                  <option value="all">Todas as disciplinas</option>
                 </select>
               </label>
 
@@ -317,6 +324,7 @@
               <div class="hero-copy">
                 <div class="hero-meta-row">
                   <span id="selectedCategory" class="badge category-badge"></span>
+                  <span id="selectedDisciplineBadge" class="badge neutral-badge hidden"></span>
                   <span id="selectedStepSummary" class="badge neutral-badge"></span>
                   <span id="selectedSourceBadge" class="badge muted"></span>
                 </div>

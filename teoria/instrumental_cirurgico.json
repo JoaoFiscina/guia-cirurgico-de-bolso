@@ -17,7 +17,7 @@
         "Regra 3: O instrumental não montado fica com a parte funcional voltada para cima até que seja montado (ex: cabo de bisturi sem lâmina).",
         "Ordem de organização interna: Menores antes dos maiores; Atraumáticas antes de traumáticas; Metzenbaum antes de Mayo; Curvas antes de retas; Cabo de bisturi nº 4 antes do nº 3."
       ],
-      "imagem": "assets/teoria/arrumacao_mesa.png"
+      "imagem": "assets/teoria/arrumacao_mesa.jpg"
     },
     {
       "id": "passagem_instrumentais",
@@ -28,7 +28,7 @@
         "O bisturi deve ser manuseado pelo instrumentador com a lâmina virada para baixo (apontada para si mesmo) e entregue ao cirurgião pela região do cabo.",
         "O instrumento deve ser entregue com um 'bater' firme na palma da mão do cirurgião para que ele saiba que o instrumento foi posicionado, sem que ele precise desviar o olhar do campo operatório."
       ],
-      "imagem": "assets/teoria/passagem_instrumentais.png"
+      "imagem": "assets/teoria/passagem_instrumentais.jpg"
     }
   ],
   "grupos": [
@@ -98,7 +98,7 @@
         "Corte",
         "Agudo"
       ],
-      "imagem": "assets/teoria/imagens_guia/bisturi.png"
+      "imagem": "assets/teoria/imagens_guia/bisturi.jpg"
     },
     {
       "id": "tesoura_mayo",

@@ -18,11 +18,11 @@ O diferencial desta versão é que os roteiros são carregados automaticamente a
 
 Ao abrir o site, o fluxo é:
 
-1. Ler [config/app-config.json](/C:/GITHUB/GITS/HCII%20SITE/config/app-config.json:1).
-2. Consultar a pasta configurada na API pública de conteúdo do GitHub.
-3. Filtrar apenas arquivos `.txt` e `.json`.
-4. Baixar cada arquivo encontrado.
-5. Interpretar o conteúdo como JSON.
+1. Ler `config/app-config.json`.
+2. Ler `procedimentos/procedimentos-manifest.json` no próprio site e baixar todos os roteiros listados ao mesmo tempo.
+3. No site publicado, consultar a pasta pela API pública do GitHub só para achar roteiros novos que ainda não entraram no manifest. Se a API falhar ou atingir o limite de 60 consultas/hora, nada muda para quem está usando. Rodando localmente (`localhost`), essa etapa é pulada para valerem os arquivos do seu computador.
+4. Se o manifest não puder ser lido, ler a pasta inteira pela API do GitHub; se isso também falhar, carregar os exemplos locais.
+5. Interpretar o conteúdo de cada arquivo `.txt` ou `.json` como JSON.
 6. Aceitar dois formatos:
    - um procedimento único como objeto JSON;
    - um objeto com a chave `"procedimentos"` contendo um array.
@@ -35,7 +35,7 @@ Ao abrir o site, o fluxo é:
 Se dois arquivos trouxerem o mesmo `id`, o sistema aplica esta regra:
 
 1. `Importação local` tem prioridade sobre `GitHub`.
-2. `GitHub` tem prioridade sobre `Manifest local`.
+2. `GitHub` (arquivo novo, fora do manifest) tem prioridade sobre o manifest.
 3. Dentro da mesma origem, vence o arquivo em ordem alfabética.
 4. Os duplicados ignorados aparecem no painel de erros/avisos de importação.
 
@@ -52,6 +52,20 @@ Isso deixa o comportamento previsível e facilita pré-visualizar um arquivo loc
 7. Atualize o site no GitHub Pages.
 
 Se a leitura automática pela API estiver disponível, o novo roteiro já aparecerá sem editar o código principal.
+
+Para ele carregar pelo caminho rápido (e não depender da API), inclua o nome do arquivo no manifest. No computador, basta rodar:
+
+```bash
+node scripts/validar_roteiros.js --atualizar-manifest
+```
+
+## Como validar os roteiros
+
+```bash
+node scripts/validar_roteiros.js
+```
+
+O script usa as mesmas regras do site e aponta JSON inválido, campos obrigatórios ausentes, `id` duplicado, imagem inexistente e diferenças entre a pasta e o manifest. Rode antes de cada commit que mexer em `procedimentos/`.
 
 ## Como pedir ao Codex para adicionar um procedimento
 
@@ -136,6 +150,10 @@ O ideal é mencionar:
 - `titulo`
 - `descricao`
 
+### Disciplina (opcional)
+
+O filtro "Disciplina" (HC I / HC II) é preenchido a partir do começo da `categoria`, por exemplo `"Habilidades Cirúrgicas II / Caixa torácica"`. Para outro valor, como um roteiro da liga, use o campo `"disciplina": "Liga"`.
+
 Se faltar algum desses campos, o arquivo não quebra o site. Ele é ignorado e o motivo aparece no painel de importação.
 
 ## Como marcar uma etapa como crítica
@@ -210,11 +228,9 @@ Edite [config/app-config.json](/C:/GITHUB/GITS/HCII%20SITE/config/app-config.jso
 - `branch`: branch publicada.
 - `proceduresPath`: pasta onde estão os arquivos de roteiro.
 
-## Quando o manifest local é usado
+## O manifest
 
-O arquivo [procedimentos/procedimentos-manifest.json](/C:/GITHUB/GITS/HCII%20SITE/procedimentos/procedimentos-manifest.json:1) é um fallback.
-
-O sistema tenta primeiro a leitura automática da pasta via API do GitHub. Se isso falhar, ele tenta o manifest.
+O arquivo `procedimentos/procedimentos-manifest.json` é a fonte principal da lista de roteiros: ele é lido do próprio site, é rápido e não depende da API do GitHub. Mantenha-o em dia com `node scripts/validar_roteiros.js --atualizar-manifest`.
 
 Formato:
 

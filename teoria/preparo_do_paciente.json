@@ -12,10 +12,10 @@
         "Fatores ligados ao paciente: Idade avançada, alterações metabólicas (como diabetes) e desnutrição.",
         "Fatores ligados ao ambiente e procedimento: Tempo de internação pré-operatória, duração da cirurgia (risco dobra a cada hora), contaminação do ar da sala, uso de drenos/sondas e tamanho da incisão."
       ],
-      "imagem": "assets/teoria/imagens_guia/fatores_de_contaminacao.png",
+      "imagem": "assets/teoria/imagens_guia/fatores_de_contaminacao.jpg",
       "imagens": [
         {
-          "src": "assets/teoria/imagens_guia/fatores_de_contaminacao.png",
+          "src": "assets/teoria/imagens_guia/fatores_de_contaminacao.jpg",
           "alt": "Fatores de contaminação cirúrgica",
           "legenda": "Fatores e vias de contaminação relacionados ao ambiente cirúrgico."
         }
